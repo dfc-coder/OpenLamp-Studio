@@ -1,0 +1,26 @@
+name: Validate develop
+on:
+  push:
+    branches: [develop]
+  pull_request:
+    branches: [develop]
+permissions:
+  contents: read
+jobs:
+  geometry:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Check JavaScript syntax
+        run: node --check app.js
+      - name: Validate geometry and binary STL
+        run: node tests/verify.cjs
+      - name: Export sample parts
+        run: |
+          mkdir -p examples
+          node tests/export.cjs
+          test -s examples/cilindrica-pantalla.stl
+          test -s examples/cilindrica-base.stl

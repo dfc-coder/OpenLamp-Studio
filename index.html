@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="theme-color" content="#f4f0ea" />
+  <title>OpenLamp Studio — Demo experimental</title>
+  <meta name="description" content="Diseñá lámparas de escritorio 3D con pantalla y base y descargá archivos STL, sin cuentas ni servidor." />
+  <link rel="stylesheet" href="styles.css" />
+  <script defer src="https://cdn.plot.ly/plotly-3.3.1.min.js"></script>
+  <script defer src="app.js"></script>
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand"><span class="brand-icon">◒</span><div>OPENLAMP <span>STUDIO</span><small>COLECCIÓN · v0.3</small></div></div>
+    <div class="header-right"><span class="online"><span></span>PROCESAMIENTO LOCAL</span><a href="https://github.com/dcityorg/vasemaker" target="_blank" rel="noopener">Inspirado en VaseMaker ↗</a></div>
+  </header>
+  <main class="layout">
+    <aside class="sidebar">
+      <div class="eyebrow">01 / COLECCIÓN</div>
+      <h1>Diseñá tu <em>lámpara.</em></h1>
+      <p class="intro">Elegí un diseño curado, personalizá su forma y descargá pantalla y base listas para preparar la impresión.</p>
+      <div id="presets" class="presets" role="group" aria-label="Silueta"></div>
+      <div class="eyebrow spacer-top">02 / PROPORCIONES Y SUPERFICIE</div>
+      <div id="controls" class="controls"></div><div class="design-actions"><button id="reset-design" class="reset-design">↺ Restablecer diseño recomendado</button><label class="advanced-toggle"><input type="checkbox" id="advanced-design" /> Ajustes avanzados</label></div><p id="curated-warning" class="curated-warning" hidden>Este diseño utiliza valores fuera de los rangos estéticos recomendados.</p>
+      <div class="eyebrow spacer-top">03 / ACOPLE Y PROYECTO</div>
+      <div class="file-actions"><button id="save-json" class="secondary">Guardar JSON</button><button id="load-json" class="secondary">Abrir JSON</button></div>
+      <input id="json-file" type="file" accept=".json,application/json" hidden />
+      <p class="safety"><strong>Geometría de escritorio:</strong> tapa superior continua, base plana con asiento para la pantalla y canal inferior de cable. La holgura es experimental; el encastre real exige prueba FDM. <strong>Sin soporte LED/E27 certificado:</strong> el montaje comercial, el cableado y la seguridad térmica siguen pendientes.</p>
+    </aside>
+    <section class="workspace" aria-label="Visor 3D">
+      <div class="workspace-top"><div><span class="eyebrow">VISTA DE DISEÑO</span><h2 id="current-name">Nube</h2><span id="current-family" class="family-caption">ABSTRACT SOFT</span></div><div class="viewer-chip">PANTALLA + BASE</div></div>
+      <div class="viewer-toolbar" role="group" aria-label="Modo de visualización"><button class="view-mode active" data-view="ensamblada">Ensamblada</button><button class="view-mode" data-view="separada">Piezas separadas</button></div><div class="viewer-shell"><div id="viewer" aria-label="Modelo tridimensional interactivo" role="img"></div><span class="view-help">Arrastrar para rotar · Rueda para zoom</span></div>
+      <div class="workspace-bottom"><div class="stats"><div><span>ALTURA</span><strong id="s-height">—</strong></div><div><span>DIÁMETRO REAL</span><strong id="s-diameter">—</strong></div><div><span>TRIÁNGULOS</span><strong id="s-tris">—</strong></div><div><span>GEOMETRÍA</span><strong id="s-valid">—</strong></div></div><div class="export"><div id="status" role="status" aria-live="polite">Preparando geometría…</div><div class="export-buttons"><button id="download-shade" disabled>STL pantalla <span>↗</span></button><button id="download-base" disabled>STL base <span>↗</span></button></div></div></div>
+    </section>
+  </main>
+  <footer>OpenLamp Studio · Código MIT · Sin registro ni seguimiento · <a href="CREDITOS.md" target="_blank">Créditos y limitaciones</a></footer>
+</body>
+</html>
