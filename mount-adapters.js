@@ -133,7 +133,7 @@
      const a=rings[k],b=rings[(k+1)%rings.length];
      for(let j=0;j<N;j++){
        const n=(j+1)%N;
-       faces.push(a[j],a[n],b[j],a[n],b[n],b[j]);
+       faces.push(a[j],b[j],a[n],a[n],b[j],b[n]);
      }
    }
    const mesh={positions:new Float32Array(points),indices:new Uint32Array(faces),
