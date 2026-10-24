@@ -731,8 +731,9 @@
   function refreshControls(){
     const exact=state.id==='tallertop_original',basic=!!window.OpenLampBasics?.shapeFor(state);
     byId('controls').hidden=false;
-    const actions=document.querySelector('.design-actions');if(actions)actions.hidden=!exact;
+    const actions=document.querySelector('.design-actions');if(actions)actions.hidden=!(exact||basic);
     const term=byId('top-mode').closest('.control');if(term)term.hidden=!(exact||basic);
+    const adv=byId('advanced-design')?.closest('label');if(adv)adv.hidden=basic;
     const notice=byId('original-notice');if(notice)notice.hidden=true;
     for(const [key,label,unit,min,max] of FIELDS){
       const input=byId('in-'+key);
