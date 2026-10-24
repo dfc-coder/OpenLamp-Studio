@@ -712,7 +712,7 @@
       ? 'Taller Stand: malla cerrada y reparada al unir vértices idénticos, sin modificar las superficies. El encastre físico y la seguridad térmica/eléctrica todavía requieren pruebas.'
       : 'Wibble Stand: montaje con la pantalla no verificado físicamente.';
     byId('download-base').textContent='STL '+bp.name+' ↗';
-    byId('current-name').textContent=preset.name;
+    byId('current-name').textContent=exact&&!originalParameterState(state)?'Taller Top · Paramétrico':preset.name;
     byId('current-family').textContent=FAMILY[preset.family].label;
     byId('curated-warning').hidden=!exceedsCurated(state);
     byId('top-mode').value=TALLER_TOP_MODES.includes(state.topMode)?state.topMode:'original';
@@ -740,8 +740,8 @@
       byId('s-height').textContent=`${Math.round(exact?Math.max(baseHeight(),ORIGINAL_SHADE_Z_MIN+state.height+shadeElevation()):state.height+shadeElevation())} mm`;
       let maxR=0;for(let i=0;i<shade.positions.length;i+=3)maxR=Math.max(maxR,Math.hypot(shade.positions[i],shade.positions[i+1]));
       byId('s-diameter').textContent=`${Math.ceil(2*maxR)} mm`;
-      byId('s-tris').textContent=(shade.triangleCount+base.triangleCount).toLocaleString('es-AR');
-      byId('s-valid').textContent=shadeReport.ok&&baseAccepted?'Dos sólidos ✓':'Revisar';
+      byId('s-tris').textContent=(shade.triangleCount+base.triangleCount+(cap?.triangleCount||0)).toLocaleString('es-AR');
+      byId('s-valid').textContent=shadeReport.ok&&baseAccepted?(cap?'Tres sólidos ✓':'Dos sólidos ✓'):'Revisar';
       if(!shadeReport.ok||!baseAccepted)throw new Error('La geometría no superó la validación');
       byId('status').textContent=bp.id==='flat'
         ? 'Pantalla original + base geométricamente verificadas · encastre físico pendiente'
@@ -758,7 +758,7 @@
       selectedBase=btn.dataset.base;
       refreshControls();timer();
     }));
-    byId('presets').innerHTML=Object.entries(FAMILY).map(([key,f])=>
+    byId('presets').innerHTML=Object.entries(FAMILY).filter(([key])=>PRESETS.some(p=>p.family===key&&!p.archived)).map(([key,f])=>
       `<div class="family-group" ${PRESETS.some(p=>p.family===key&&!p.archived)?'':'hidden'}><div class="family-title">${f.label}</div><div class="family-grid">${PRESETS.filter(p=>p.family===key&&!p.archived).map(p=>
         `<button class="preset" data-id="${p.id}" aria-pressed="false"><span class="glyph" aria-hidden="true">${p.glyph}</span><span>${p.name}</span></button>`).join('')}</div></div>`).join('');
     document.querySelectorAll('.preset').forEach(btn=>btn.addEventListener('click',()=>{
