@@ -1,0 +1,11 @@
+/* Phase 01 — restrained industrial silhouette editor */
+.ol-profile-editor{background:#fbf9f4;border:1px solid #e1dbce;border-radius:12px;padding:14px;margin:18px 0 18px}
+.ol-profile-title{font-size:15px;margin:0 0 12px;color:#3c4a3e;letter-spacing:-.2px}
+.ol-profile-subtitle{font-size:11px;line-height:1.55;color:#85877d;margin:10px 0}
+#ol-profile-svg{display:block;width:100%;max-height:320px;background:#f6f4ed;border:1px solid #e7e3d8;border-radius:10px;touch-action:none}
+#ol-profile-svg circle[data-handle]{cursor:ew-resize}
+#ol-profile-svg circle[data-handle]:focus{outline:none;stroke:#47765c;stroke-width:4}
+.ol-profile-actions{display:flex;gap:7px;margin:10px 0}
+.ol-profile-actions button{flex:1}
+.ol-profile-actions button:disabled{opacity:.4;cursor:not-allowed}
+.ol-profile-status{font-size:10px;color:#728071;line-height:1.45;margin:0}
