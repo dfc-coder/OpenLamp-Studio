@@ -56,12 +56,13 @@
    S().KNOTS.forEach((t,i)=>{
      const radius=lookup(t)+curve(t),x=MID+radius*FACTOR,y=H-18-t*(H-36);
      const handle=svgEl('circle',{cx:x,cy:y,r:i===0?4:7,fill:i===0?'#72856c':'#faf5ed',
-       stroke:i===0?'#72856c':'#916d49','stroke-width':2,'data-handle':i,tabindex:i?'0':'-1',
+       stroke:i===0?'#72856c':shape.family==='original'?'#aaa89e':'#916d49','stroke-width':2,
+       'data-handle':i,tabindex:i&&shape.family!=='original'?'0':'-1',
        role:'slider','aria-label':S().LABELS[i],
        'aria-valuenow':shape.offsets[i],'aria-valuemin':S().families[shape.family].limits[i][0],
        'aria-valuemax':S().families[shape.family].limits[i][1]});
-     if(i!==0)handle.addEventListener('pointerdown',startDrag);
-     if(i!==0)handle.addEventListener('keydown',e=>{
+     if(i!==0&&shape.family!=='original')handle.addEventListener('pointerdown',startDrag);
+     if(i!==0&&shape.family!=='original')handle.addEventListener('keydown',e=>{
        if(e.key!=='ArrowRight'&&e.key!=='ArrowLeft')return;
        e.preventDefault();
        const next=copy(shape),lim=S().families[shape.family].limits[i];
@@ -113,7 +114,7 @@
      const option=document.createElement('option');option.value=id;option.textContent=info.name;select.append(option);
    }
    select.addEventListener('change',()=>commit(S().preset(select.value)));
-   const subtitle=node('p','ol-profile-subtitle','Arrastrá los puntos de perfil en horizontal. La línea punteada representa la silueta original; el acople inferior no se modifica.');
+   const subtitle=node('p','ol-profile-subtitle','Elegí una familia para habilitar los puntos. Arrastralos horizontalmente; la línea punteada es el perfil original y el encastre está protegido.');
    const svg=svgEl('svg',{id:'ol-profile-svg',viewBox:`0 0 ${W} ${H}`,role:'group',
      'aria-label':'Editor de perfil lateral con puntos restringidos'});
    svg.addEventListener('pointermove',moveDrag);
@@ -125,7 +126,7 @@
    footer.append(undo,redoBtn);
    const status=node('p','ol-profile-status');status.id='ol-shade-family-status';status.setAttribute('role','status');
    editor.append(title,select,subtitle,svg,footer,status);
-   pane.insertBefore(editor,pane.querySelector('.design-actions')||pane.firstChild);
+   pane.insertBefore(editor,pane.querySelector('#controls')||pane.firstChild);
    document.addEventListener('openlamp:shade-source',e=>{envelope=e.detail.envelope;redraw();});
    document.addEventListener('openlamp:project-loaded',()=>{history=[];forward=[];redraw();});
    document.addEventListener('openlamp:shade-updated',redraw);
