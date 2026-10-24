@@ -717,7 +717,7 @@
     byId('current-name').textContent=exact&&!originalParameterState(state)?'Taller Top · Paramétrico':preset.name;
     byId('current-family').textContent=FAMILY[preset.family].label;
     byId('curated-warning').hidden=!exceedsCurated(state);
-    byId('top-mode').value=TALLER_TOP_MODES.includes(state.topMode)?state.topMode:'original';
+    byId('top-mode').value=state.topMode==='open'?'original':(TALLER_TOP_MODES.includes(state.topMode)?state.topMode:'original');
     for(const key of ['thickness','ribDepth','ribCount','twist','clearance']){
       const parent=byId('in-'+key)?.closest('.control');if(parent)parent.hidden=exact;
     }
