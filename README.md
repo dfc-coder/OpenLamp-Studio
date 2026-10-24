@@ -1,3 +1,13 @@
+# OpenLamp Studio v1.3 — Base-dependent mechanical joints (CAD prototype)
+
+**Base now selects the physical joint.** Taller Stand uses its existing CAD seat directly (34.880-mm male radius; 35.044-mm shade socket; nominal 0.164-mm radial clearance and 14.17-mm insertion). Wibble Stand has no equivalent circular seat, so OpenLamp computes an additional 4-lobe conformal transition **from the unmodified Wibble 3D mesh**. This adapter is visible in the viewer, and Make supplies its own STL only when Wibble is selected. Switching back to Taller removes the adapter.
+
+The Wibble joint is explicitly an **untested CAD prototype**. The plate contour and lower mating surface are computed from the imported triangles. The four contact lobes do not establish proven mechanical retention, tolerance, stability or thermal/electrical safety. A physical fit coupon, print and assembly tests are required before declaring a complete lamp ready for use.
+
+Automated tests cover source tip geometry, manifold adapter/STL, base switching and export, and prevent the prototype from being labeled production-compatible. Details: [Mount interfaces](docs/MOUNT_INTERFACES.md).
+
+---
+
 # OpenLamp Studio v1.2 — Distinct basic shade silhouettes
 
 The seven silhouette families now have independent, recognizable radial design signatures. These are not merely the same profile with different height/width presets:
