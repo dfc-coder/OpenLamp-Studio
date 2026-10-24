@@ -177,7 +177,7 @@
     if(!bridge||!compat)return;
     const project=bridge.getProject(),status=bridge.getStatus();
     const report=compat.evaluate({baseId:project.baseId,hardware:project.params.hardware,
-      shadeValid:status.shadeValid,baseValid:status.baseValid});
+      shadeValid:status.shadeValid,baseValid:status.baseValid,adapterGenerated:status.adapterGenerated&&status.adapterValid});
     const bulb=$('ol-bulb-status');
     if(bulb){
       bulb.textContent=report.blockers.length?
@@ -192,8 +192,8 @@
         ['Geometría',report.geometryStatus==='valid'?'STL individuales habilitados':'Geometría pendiente',''+(report.geometryStatus==='valid'?'ok':'warn')],
         ['Base',compat.interfaces[project.baseId]?.name||'Sin base',report.knownMount?'ok':'warn'],
         ['Bulb',report.hardware.type==='none'?'Kit no seleccionado':(report.hardware.sku||'Sin referencia'),'warn'],
-        ['Encastre',report.knownMount?'Encastre CAD · falta prueba física':'Sin interfaz mecánica verificada','warn'],
-        ['Fabricación','Carrier y seguridad no ensayados','warn'],
+        ['Encastre',report.knownMount?'Taller: asiento directo · falta prueba física':report.adapterPrototype?'Wibble: acople personalizado · prueba de retención pendiente':'Acople no generado','warn'],
+        ['Fabricación','Acople prototipo y seguridad no ensayados','warn'],
       ];
       for(const [name,desc,style] of rows){
         const item=el('div','ol-check-item '+style);
