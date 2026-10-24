@@ -28,7 +28,10 @@ jobs:
           node-version: '22'
 
       - name: Verificar sintaxis del generador
-        run: node --check app.js
+        run: |
+          node --check app.js
+          node --check compatibility.js
+          node --check wizard.js
 
       - name: Verificar mallas, STL y compatibilidad
         run: |
@@ -36,6 +39,7 @@ jobs:
           node tests/taller_top.cjs
           node tests/original_top.cjs
           node tests/parametric_original.cjs
+          node tests/compatibility.cjs
           node tests/stand.cjs
           node tests/taller_base.cjs
           node tests/assembly.cjs
@@ -46,7 +50,7 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p _site/assets/stands _site/assets/shades
-          cp index.html app.js styles.css CREDITOS.md _site/
+          cp index.html app.js styles.css compatibility.js wizard.js workflow.css CREDITOS.md _site/
           cp assets/stands/wibble-stand.olmesh.gz _site/assets/stands/
           cp assets/stands/wibble-reference.webp _site/assets/stands/
           cp assets/stands/taller-stand.olmesh.gz _site/assets/stands/
@@ -58,6 +62,9 @@ jobs:
         run: |
           test -s _site/CREDITOS.md
           test -s _site/index.html
+          test -s _site/compatibility.js
+          test -s _site/wizard.js
+          test -s _site/workflow.css
           test -s _site/app.js
           test -s _site/styles.css
           test -s _site/assets/stands/wibble-stand.olmesh.gz
