@@ -13,9 +13,10 @@
     atelier: {label:'ATELIER · PANTALLAS DE MESA',ribDepth:[0,0.6],ribCount:[0,32],twist:[-5,5]},
     taller: {label:'TALLER · PARAMÉTRICA',ribDepth:[0,2],ribCount:[0,52],twist:[-10,10]},
     original: {label:'ARCHIVO OBJ ORIGINAL',ribDepth:[0,0],ribCount:[0,0],twist:[0,0]},
+    basic: {label:'FORMAS BÁSICAS',ribDepth:[0,0],ribCount:[0,0],twist:[0,0]},
   };
-  const PRESETS = [
-    {id:'tallertop_original',name:'Taller Top · Original',family:'original',glyph:'◉',height:228.142662,diameter:131.198182,thickness:1.6,ribDepth:0,ribCount:0,twist:0,topMode:'original',waist:0,curvature:0},
+  const PRESETS = [...(window.OpenLampBasics?.presets||[]),
+    {id:'tallertop_original',archived:!!window.OpenLampBasics,name:'Taller Top · Original',family:'original',glyph:'◉',height:228.142662,diameter:131.198182,thickness:1.6,ribDepth:0,ribCount:0,twist:0,topMode:'original',waist:0,curvature:0},
     {id:'taller_top',archived:true,name:'Taller Top',family:'taller',glyph:'⌛',height:228,diameter:131.2,thickness:1.6,ribDepth:0.6,ribCount:40,twist:0,topMode:'open'},
     {id:'halo',archived:true,name:'Halo',family:'atelier',glyph:'◒',height:120,diameter:238,thickness:1.6,ribDepth:0,ribCount:0,twist:0},
     {id:'domo',archived:true,name:'Domo',family:'atelier',glyph:'◠',height:128,diameter:220,thickness:1.6,ribDepth:0,ribCount:0,twist:0},
@@ -145,6 +146,7 @@
     out.surfaceIntensity=Number.isFinite(intensity)?clamp(intensity,0.88,1.06):1;
     out.hardware=window.OpenLampCompatibility?.sanitizeHardware(raw.hardware)||{type:'none'};
     out.shadeDesign=window.OpenLampShade?.normalize(raw.shadeDesign)||{family:'original',offsets:[0,0,0,0,0]};
+    if(window.OpenLampBasics?.shapeFor(out))out.basicOptions=window.OpenLampBasics.optionsFor({...out,basicOptions:raw.basicOptions});
     return out;
   }
   function bezierPoint(segment,u){
@@ -300,6 +302,7 @@
     return {positions,indices:Uint32Array.from(I),triangleCount:I.length/3,vertexCount:positions.length/3};
   }
   function buildShade(p){
+    if(window.OpenLampBasics?.shapeFor(p))return window.OpenLampBasics.build(p);
     if(p.id==='taller_top')return buildTallerShade(p);
     const N=SHADE_SEGMENTS,L=SHADE_LEVELS,ringCount=L*N;
     const verts=new Float32Array((2*ringCount+2)*3),indices=[];
@@ -582,6 +585,7 @@
   function baseHeight(){return currentBasePreset().height;}
   function baseDiameter(){return currentBasePreset().diameter;}
   function shadeElevation(){
+    if(window.OpenLampBasics?.shapeFor(state))return baseHeight()-window.OpenLampBasics.INSERTION;
     if(state.id==='tallertop_original')return selectedBase==='flat'?ORIGINAL_SHADE_BASE_OFFSET:baseHeight()-ORIGINAL_SHADE_Z_MIN;
     return baseHeight()-(selectedBase==='flat'&&state.id==='taller_top'?TALLER_MOUNT_ZONE_HEIGHT:0);
   }
@@ -725,10 +729,10 @@
   }
   const timer=()=>{clearTimeout(pendingRender);pendingRender=setTimeout(render,170);};
   function refreshControls(){
-    const exact=state.id==='tallertop_original';
+    const exact=state.id==='tallertop_original',basic=!!window.OpenLampBasics?.shapeFor(state);
     byId('controls').hidden=false;
     const actions=document.querySelector('.design-actions');if(actions)actions.hidden=!exact;
-    const term=byId('top-mode').closest('.control');if(term)term.hidden=!exact;
+    const term=byId('top-mode').closest('.control');if(term)term.hidden=!(exact||basic);
     const notice=byId('original-notice');if(notice)notice.hidden=true;
     for(const [key,label,unit,min,max] of FIELDS){
       const input=byId('in-'+key);
@@ -737,6 +741,8 @@
       lo=Math.min(lo,state[key]);hi=Math.max(hi,state[key]);
       const family=state.shadeDesign?.family||'original';
       const limits=window.OpenLampShade?.families[family];
+      if(basic&&key==='height'){lo=90;hi=270;input.step='1';}
+      if(basic&&key==='diameter'){lo=110;hi=220;input.step='1';}
       if(exact&&key==='height'){lo=limits?limits.height[0]:195.142662;hi=limits?limits.height[1]:265.142662;input.step='1';}
       if(exact&&key==='diameter'){lo=limits?limits.diameter[0]:131.198182;hi=limits?limits.diameter[1]:175.198182;input.step='0.5';}
       input.min=lo;input.max=hi;input.value=state[key];
@@ -760,11 +766,11 @@
     byId('curated-warning').hidden=!exceedsCurated(state);
     byId('top-mode').value=state.topMode==='open'?'original':(TALLER_TOP_MODES.includes(state.topMode)?state.topMode:'original');
     for(const key of ['thickness','ribDepth','ribCount','twist','clearance']){
-      const parent=byId('in-'+key)?.closest('.control');if(parent)parent.hidden=exact;
+      const parent=byId('in-'+key)?.closest('.control');if(parent)parent.hidden=exact||(basic&&key!=='thickness');
     }
     for(const key of ['height','diameter','waist','curvature']){
       const parent=byId('in-'+key)?.closest('.control');
-      if(parent)parent.hidden=!exact||(['waist','curvature'].includes(key)&&state.shadeDesign?.family!=='original');
+      if(parent)parent.hidden=basic?['waist','curvature'].includes(key):!exact||(['waist','curvature'].includes(key)&&state.shadeDesign?.family!=='original');
     }
     for(const el of document.querySelectorAll('.view-mode'))el.classList.toggle('active',el.dataset.view===viewMode);
   }
@@ -775,7 +781,8 @@
     try{
       const exact=state.id==='tallertop_original';
       const shade=exact?deformOriginalShade(await loadOriginalShade(),state):buildShade(state);
-      const cap=exact?buildTopCap(shade,state.topMode):null;
+      const basic=!!window.OpenLampBasics?.shapeFor(state);
+      const cap=exact||basic?buildTopCap(shade,state.topMode):null;
       const bp=currentBasePreset(),base=await loadStand(bp.id);
       if(requestId!==renderRequest)return;
       const shadeReport=exact?validateOriginalDeformation(await loadOriginalShade(),shade):validate(shade),baseReport=validate(base);
@@ -793,9 +800,7 @@
       byId('s-tris').textContent=(shade.triangleCount+base.triangleCount+(cap?.triangleCount||0)).toLocaleString('es-AR');
       byId('s-valid').textContent=shadeReport.ok&&baseAccepted?(cap?'Tres sólidos ✓':'Dos sólidos ✓'):'Revisar';
       if(!shadeReport.ok||!baseAccepted)throw new Error('La geometría no superó la validación');
-      byId('status').textContent=bp.id==='flat'
-        ? 'Pantalla original + base geométricamente verificadas · encastre físico pendiente'
-        : 'Stand Wibble y pantalla listos · Montaje NO verificado';
+      byId('status').textContent=bp.id==='flat'?'Pantalla + base geométricamente verificadas · ensayos físicos pendientes':'Wibble: encastre NO verificado';
       for(const id of ['download-shade','download-base'])byId(id).disabled=false;
       byId('download-cap').disabled=!cap;
       document.dispatchEvent(new CustomEvent('openlamp:rendered',
@@ -818,7 +823,9 @@
     }));
     byId('controls').innerHTML=FIELDS.map(([key,label,unit,min,max,step])=>`<div class="control"><div class="control-head"><label for="in-${key}">${label}</label><output id="out-${key}"></output></div><input id="in-${key}" type="range" min="${min}" max="${max}" step="${step}" aria-label="${label}" /></div>`).join('');
     for(const [key] of FIELDS)byId('in-'+key).addEventListener('input',e=>{
-      state[key]=Number(e.target.value);refreshControls();timer();
+      state[key]=Number(e.target.value);
+      if(window.OpenLampBasics?.shapeFor(state)&&key==='diameter'&&state.basicOptions?.topDiameter>state.diameter)state.basicOptions.topDiameter=state.diameter;
+      refreshControls();timer();
       if(key==='height'||key==='diameter')document.dispatchEvent(new Event('openlamp:shade-updated'));
     });
     byId('top-mode').addEventListener('change',e=>{state.topMode=e.target.value;refreshControls();timer();});
@@ -827,17 +834,17 @@
     document.querySelectorAll('.view-mode').forEach(btn=>btn.addEventListener('click',()=>{viewMode=btn.dataset.view;refreshControls();if(meshes)plotMeshes(meshes).catch(console.warn);}));
     byId('download-shade').addEventListener('click',()=>{if(!reports?.shade?.ok)return;fileDownload(stlBinary(meshes.shade),state.id==='tallertop_original'?(originalParameterState(state)?'tallertop-original-exacto.stl':`openlamp-shade-${state.shadeDesign?.family||'custom'}.stl`):`openlamp-pantalla-${state.id}.stl`,'model/stl');});
     byId('download-cap').addEventListener('click',()=>{if(!meshes?.cap||!reports?.cap?.ok)return;
-      fileDownload(stlBinary(meshes.cap),`openlamp-taller-top-tapa-${state.topMode}.stl`,'model/stl');
+      fileDownload(stlBinary(meshes.cap),`openlamp-${state.id}-tapa-${state.topMode}.stl`,'model/stl');
     });
     byId('download-base').addEventListener('click',()=>{if(!reports?.baseAccepted)return;
       const name=currentBasePreset().filename;
       fileDownload(stlBinary(meshes.base),name,'model/stl');
     });
-    byId('save-json').addEventListener('click',()=>fileDownload(JSON.stringify({app:'openlamp-studio',version:7,params:state,baseId:selectedBase},null,2),`openlamp-${state.id}.json`,'application/json'));
+    byId('save-json').addEventListener('click',()=>fileDownload(JSON.stringify({app:'openlamp-studio',version:8,params:state,baseId:selectedBase},null,2),`openlamp-${state.id}.json`,'application/json'));
     byId('load-json').addEventListener('click',()=>byId('json-file').click());
     byId('json-file').addEventListener('change',async e=>{const file=e.target.files?.[0];if(!file)return;try{
       const data=JSON.parse(await file.text());
-      if(data.app!=='openlamp-studio'||![1,2,3,4,5,6,7].includes(data.version))throw new Error('Formato incompatible');
+      if(data.app!=='openlamp-studio'||![1,2,3,4,5,6,7,8].includes(data.version))throw new Error('Formato incompatible');
       state=sanitize(data.params,{legacy:data.version<3});
       selectedBase=BASE_PRESETS.some(p=>p.id===data.baseId)?data.baseId:'flat';
       if(exceedsCurated(state))byId('advanced-design').checked=true;
@@ -847,6 +854,12 @@
   }
   window.OpenLampBridge={
     getProject:()=>({params:{...state},baseId:selectedBase}),
+    setBasicOption:(key,value)=>{
+      if(!window.OpenLampBasics?.shapeFor(state))return;
+      if(!['topDiameter','belly','discDepth'].includes(key))throw new Error('Opción básica desconocida');
+      state.basicOptions=window.OpenLampBasics.optionsFor({...state,basicOptions:{...state.basicOptions,[key]:Number(value)}});
+      refreshControls();timer();document.dispatchEvent(new Event('openlamp:basic-updated'));
+    },
     setShadeDesign:design=>{
       if(state.id!=='tallertop_original')throw new Error('Editor visual disponible para Taller Top');
       const next=window.OpenLampShade.normalize(design);
@@ -869,7 +882,7 @@
     },
     getShadeInterface:()=>({
       modelId:state.id,familyId:state.shadeDesign?.family||'original',
-      mount:{innerRadiusMm:TALLER_MOUNT_INNER_RADIUS,protectedHeightMm:20,
+      mount:{innerRadiusMm:window.OpenLampBasics?.shapeFor(state)?window.OpenLampBasics.INNER_MOUNT:TALLER_MOUNT_INNER_RADIUS,protectedHeightMm:window.OpenLampBasics?.shapeFor(state)?window.OpenLampBasics.INSERTION:20,
         fitStatus:'physical-test-required'},
       actualDimensions:lastShadeDimensions?{...lastShadeDimensions}:null,
       closure:state.topMode,geometryValid:!!reports?.shade?.ok,
