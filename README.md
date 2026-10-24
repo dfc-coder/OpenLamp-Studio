@@ -1,6 +1,6 @@
-# OpenLamp Studio v0.3 — colección de pantallas 3D
+# OpenLamp Studio v0.4 — Atelier de pantallas de mesa
 
-Demo estática de diseño paramétrico de **pantallas para lámparas de mesa**. Esta edición implementa exclusivamente el rediseño estético previsto para v0.3, conservando la geometría de unión, base y exportación de v0.2.
+Demo estática de diseño paramétrico de **pantallas para lámparas de mesa**. La colección Atelier v0.4 incorpora cuatro siluetas de perfil bajo estudiadas con el stand Wibble de Abstractia como referencia de proporciones, sin copiar su pantalla. Se conserva la base plana, el stand Wibble, las exportaciones, los controles y la lectura de proyectos existentes.
 
 ## Probar en navegador
 
@@ -11,7 +11,23 @@ python3 -m http.server 8000
 
 Abrí <http://localhost:8000>. No requiere Node, cuenta, API ni conexión a internet: Plotly.js está incluido localmente. Cuando WebGL no está disponible se muestra un esquema 2D sin interacción orbital; los STL siguen funcionando.
 
-## Qué cambió respecto a v0.2
+## Colección Atelier v0.4
+
+| Preset | Altura | Diámetro nominal | Enfoque |
+| --- | ---: | ---: | --- |
+| Halo | 120 mm | 238 mm | Volumen bajo de borde continuo |
+| Domo | 128 mm | 220 mm | Cúpula redondeada |
+| Campana | 134 mm | 219 mm | Silueta acampanada |
+| Tambor | 144 mm | 207 mm | Cilindro con transiciones suaves |
+
+Todos los perfiles se definen mediante curvas Bézier cúbicas completas. La corona no utiliza el antiguo taper esférico genérico. Los relieves predeterminados son mínimos. El Wibble es la base inicial de la demo para evaluar la composición.
+
+Los seis presets anteriores se mantienen internamente para poder cargar proyectos JSON antiguos, pero se ocultan de la selección principal. No se altera la geometría original del Wibble ni las interfaces mecánicas de la base plana.
+
+**Advertencia:** la composición pantalla + Wibble es una visualización; el encastre, la orientación y la impresión FDM real no han sido probados físicamente. Los STL válidos no equivalen a compatibilidad mecánica o eléctrica certificada.
+
+## Historial: v0.3
+Qué cambió respecto a v0.2
 
 - **Seis diseños curados** en tres familias, sin texturas excesivas: Globo y Óvalo (*Abstract Soft*), Hongo y Campana (*Abstract Classic*), Tambor e Imperio (*Abstract Minimal*).
 - Siluetas clásicas definidas mediante curvas Bézier cúbicas por tramos; sustituyen los perfiles senoidales y las formas amorfas anteriores.
@@ -38,7 +54,7 @@ node tests/export.cjs
 python tests/browser_inline.py
 ```
 
-Se comprobaron las geometrías de seis diseños y tres combinaciones límite, total **18 mallas STL en pruebas unitarias**; se exportaron e inspeccionaron independientemente **12 STL nominales** con Trimesh (`watertight`, `winding_consistent`, volumen positivo). El test de Chromium comprueba controles, presets, guardado/carga JSON, archivos STL y vista alternativa 2D.
+Se comprobaron los cuatro diseños Atelier, seis diseños archivados y tres combinaciones límite, total **26 mallas STL en pruebas unitarias**; se exportaron e inspeccionaron independientemente **12 STL nominales** con Trimesh (`watertight`, `winding_consistent`, volumen positivo). El test de Chromium comprueba controles, presets, guardado/carga JSON, archivos STL y vista alternativa 2D.
 
 Ver `tests/VERIFICACION.md` para resultados y limitaciones. Las imágenes `tests/design/` ilustran la geometría calculada; no son fotografías de impresión ni simulaciones fotométricas.
 
