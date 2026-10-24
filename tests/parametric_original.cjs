@@ -1,6 +1,6 @@
 const fs=require('node:fs'),zlib=require('node:zlib'),vm=require('node:vm'),path=require('node:path'),assert=require('node:assert/strict');
 const root=path.join(__dirname,'..');
-const chunks=Array.from({length:19},(_,i)=>fs.readFileSync(path.join(root,'assets','shades','tallertop-original.olmesh.gz.part-'+String(i).padStart(2,'0')));
+const chunks=[];for(let i=0;i<19;i++)chunks.push(fs.readFileSync(path.join(root,'assets','shades','tallertop-original.olmesh.gz.part-'+String(i).padStart(2,'0'))));
 const raw=zlib.gunzipSync(Buffer.concat(chunks));
 const context={window:{addEventListener(){}},console,Math,Float32Array,Uint32Array,ArrayBuffer,DataView,Map,Number,Error};
 vm.runInNewContext(fs.readFileSync(path.join(root,'app.js'),'utf8'),context);
