@@ -1,3 +1,29 @@
+# OpenLamp Studio v1.1 — Basic Desk Lamp Shade Generator
+
+**New primary Shade flow:** seven parametric solids of revolution, replacing the previous Taller Top OBJ-led designer in the public interface.
+
+| Shape | Main controls |
+| --- | --- |
+| Cylinder | Height, max width, wall |
+| Cone | Height, width, top diameter, wall |
+| Dome | Height, width, wall |
+| Bell | Height, width, top diameter, wall |
+| Sphere | Height, width, wall |
+| Pear | Height, width, belly position, wall |
+| Disc | Height, width, disc height distribution, wall |
+
+**Torus and Free Curve are disabled future placeholders** — not claimed as implemented. Shape surfaces start smooth; in step Surface, Soft Ribs and Defined Ribs add a restrained relief that fades to zero in the protected lower mounting area.
+
+**Mechanical interface:** each shape uses a nominal 35.044-mm inner mating radius and a 14.17-mm insertion region corresponding to the original Taller Stand CAD dimensions. The stand's geometry is unchanged. Printing-fit, assembly strength, kit compatibility and safety are NOT verified physically. Wibble remains independently unverified.
+
+**Exports:** watertight open-top shade STL, optional separate flat/curved cap STL, unmodified base STL, and full project JSON **v8**. Legacy JSON versions 1–7 remain readable; older Taller Top source and code remain archived in the repository, but are not in the primary shape picker.
+
+**Implementation:** `basic-shade.js` generates the geometry; `basic-options.js` adds relevant controls; `app.js` retains the shared loading, viewer, validation, and STL export; `wizard.js` preserves Bulb, Base, Surface, Make. `tests/basic-shade.cjs` checks all seven forms, topology, cap validity and fixed mounting ring. Chromium workflow checks the live five-stage UI and STL/JSON export.
+
+Production-ready claims **do not follow** from an STL-only geometric check. A particular real lighting kit and carrier must be selected, modeled, printed and tested before Make can certify a full lamp.
+
+---
+
 # OpenLamp Studio v0.8 — Taller Top paramétrico fiel al OBJ
 
 El único preset visible se construye a partir de los **342.396 vértices / 684.792 triángulos de `tallertop.obj`**, sin reconstruir las estrías. El modo por defecto devuelve el **mismo objeto de malla sin ninguna transformación**. Con parámetros diferentes, se modifica una copia de los vértices y se conservan todos los índices de triángulos originales.
