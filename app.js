@@ -416,7 +416,7 @@
   const DEFORMATION_LOCK_END=ORIGINAL_SHADE_Z_MIN+20;
   const DEFORMATION_BLEND_END=DEFORMATION_LOCK_END+35;
   function originalParameterState(p){
-    return p.height===ORIGINAL_SHADE_HEIGHT && p.diameter===131.198182 &&
+    return Math.abs(p.height-ORIGINAL_SHADE_HEIGHT)<0.001 && Math.abs(p.diameter-131.198182)<0.001 &&
       (p.waist||0)===0 && (p.curvature||0)===0;
   }
   function deformOriginalShade(source,p){
@@ -444,6 +444,30 @@
       out[i]=x*factor;out[i+1]=y*factor;out[i+2]=z+dh*t*blend;
     }
     return {positions:out,indices:source.indices,triangleCount:source.triangleCount,vertexCount:source.vertexCount};
+  }
+  function validateOriginalDeformation(source,deformed){
+    if(source===deformed)return {ok:true,source:'Original SHA-256'};
+    if(deformed.indices!==source.indices||deformed.positions.length!==source.positions.length)
+      return {ok:false,reason:'Topology changed'};
+    const original=source.positions,P=deformed.positions,I=deformed.indices;
+    let errors=0,flipped=0,degenerate=0;
+    for(let v=0;v<P.length;v+=3){
+      if(!Number.isFinite(P[v])||!Number.isFinite(P[v+1])||!Number.isFinite(P[v+2]))errors++;
+      if(original[v+2]<=DEFORMATION_LOCK_END &&
+        (P[v]!==original[v]||P[v+1]!==original[v+1]||P[v+2]!==original[v+2]))errors++;
+    }
+    for(let k=0;k<I.length;k+=3){
+      const a=3*I[k],b=3*I[k+1],c=3*I[k+2];
+      const ux=P[b]-P[a],uy=P[b+1]-P[a+1],uz=P[b+2]-P[a+2];
+      const vx=P[c]-P[a],vy=P[c+1]-P[a+1],vz=P[c+2]-P[a+2];
+      const nx=uy*vz-uz*vy,ny=uz*vx-ux*vz,nz=ux*vy-uy*vx;
+      if(Math.hypot(nx,ny,nz)<1e-8){degenerate++;continue;}
+      const oux=original[b]-original[a],ouy=original[b+1]-original[a+1],ouz=original[b+2]-original[a+2];
+      const ovx=original[c]-original[a],ovy=original[c+1]-original[a+1],ovz=original[c+2]-original[a+2];
+      const onx=ouy*ovz-ouz*ovy,ony=ouz*ovx-oux*ovz,onz=oux*ovy-ouy*ovx;
+      if(nx*onx+ny*ony+nz*onz<=0)flipped++;
+    }
+    return {ok:errors===0&&degenerate===0&&flipped===0,errors,degenerate,flipped};
   }
   // Independent removable closure: no change to the original mesh topology.
   // A cylindrical locating ring fits inside the existing upper opening.
@@ -478,7 +502,7 @@
     }
     for(let q=0;q<outline.length-1;q++)for(let j=0;j<n;j++){
       const k=(j+1)%n,a=idx(q,j),b=idx(q,k),c=idx(q+1,j),d=idx(q+1,k);
-      indices.push(a,c,b,b,c,d);
+      indices.push(a,b,c,b,d,c);
     }
     // Seal both ~zero-radius tips with fans (do not create zero-area triangles).
     // The first/last rings have a nonzero 0.01-mm radius.
@@ -486,8 +510,8 @@
     const upperTip=vertices.length/3;vertices.push(0,0,outline[outline.length-1][1]);
     for(let j=0;j<n;j++){
       const k=(j+1)%n;
-      indices.push(idx(0,j),idx(0,k),lowerTip);
-      indices.push(idx(outline.length-1,j),upperTip,idx(outline.length-1,k));
+      indices.push(idx(0,j),lowerTip,idx(0,k));
+      indices.push(idx(outline.length-1,j),idx(outline.length-1,k),upperTip);
     }
     const cap=createMesh(vertices,indices);
     const check=validate(cap);
@@ -605,7 +629,7 @@
   }
   function fallback2D() {
     if(state.id==='tallertop_original'){
-      byId('viewer').innerHTML='<div class="wibble-fallback"><strong>Taller Top original · 684.792 triángulos</strong><p>Se requiere WebGL para visualizar la malla original. El STL conserva la geometría cargada.</p></div>';
+      byId('viewer').innerHTML='<div class="wibble-fallback"><strong>Taller Top · malla OBJ con 684.792 triángulos</strong><p>Se requiere WebGL para visualizar las deformaciones. La exportación STL conserva las caras originales.</p></div>';
       const hint=document.querySelector('.view-help');if(hint)hint.textContent='WebGL no disponible';
       plotPrepared=false;return Promise.resolve();
     }
@@ -662,7 +686,7 @@
   function refreshControls(){
     const exact=state.id==='tallertop_original';
     byId('controls').hidden=false;
-    const actions=document.querySelector('.design-actions');if(actions)actions.hidden=exact;
+    const actions=document.querySelector('.design-actions');if(actions)actions.hidden=!exact;
     const term=byId('top-mode').closest('.control');if(term)term.hidden=!exact;
     const notice=byId('original-notice');if(notice)notice.hidden=true;
     for(const [key,label,unit,min,max] of FIELDS){
@@ -670,8 +694,11 @@
       let [lo,hi]=fieldLimits(key,state,byId('advanced-design').checked);
       // Historical projects remain editable without silently discarding values.
       lo=Math.min(lo,state[key]);hi=Math.max(hi,state[key]);
+      if(exact&&key==='height'){lo=195.142662;hi=265.142662;input.step='1';}
+      if(exact&&key==='diameter'){lo=131.198182;hi=175.198182;input.step='0.5';}
       input.min=lo;input.max=hi;input.value=state[key];
-      byId('out-'+key).textContent=state[key].toLocaleString('es-AR')+(unit?` ${unit}`:'');
+      const display=exact&&['height','diameter'].includes(key)?state[key].toFixed(2).replace('.',','):state[key].toLocaleString('es-AR');
+      byId('out-'+key).textContent=display+(unit?` ${unit}`:'');
     }
     document.querySelectorAll('.preset').forEach(el=>{el.classList.toggle('active',el.dataset.id===state.id);el.setAttribute('aria-pressed',String(el.dataset.id===state.id));});
     const preset=presetById(state.id);
@@ -707,8 +734,7 @@
       const cap=exact?buildTopCap(shade,state.topMode):null;
       const bp=currentBasePreset(),base=await loadStand(bp.id);
       if(requestId!==renderRequest)return;
-      const changed=exact&&!originalParameterState(state);
-      const shadeReport=exact&&!changed?{ok:true,source:'SHA-256/CI original asset'}:validate(shade),baseReport=validate(base);
+      const shadeReport=exact?validateOriginalDeformation(await loadOriginalShade(),shade):validate(shade),baseReport=validate(base);
       const baseAccepted=baseReport.ok;
       meshes={shade,base,cap};reports={shade:shadeReport,base:baseReport,baseAccepted,cap:cap?{ok:true}:null};
       byId('s-height').textContent=`${Math.round(exact?Math.max(baseHeight(),ORIGINAL_SHADE_Z_MIN+state.height+shadeElevation()):state.height+shadeElevation())} mm`;
@@ -766,6 +792,6 @@
     }catch(err){alert('No se pudo abrir el proyecto: '+err.message);}finally{e.target.value='';}});
     refreshControls();render();
   }
-  window.OpenLampTest={deformOriginalShade,buildTopCap,originalParameterState,DEFORMATION_LOCK_END,ORIGINAL_SHADE_HEIGHT,weldCoincidentVertices,loadOriginalShade,ORIGINAL_SHADE_PARTS,ORIGINAL_SHADE_SHA256,buildTallerShade,tallerOuterRadius,shadeElevation,TALLER_MOUNT_INNER_RADIUS,TALLER_MOUNT_ZONE_HEIGHT,TALLER_TOP_PROFILE,TALLER_TOP_ORIGINAL_HEIGHT,TALLER_TOP_ORIGINAL_DIAMETER,buildShade,buildBase,parseStandMesh,validate,stlBinary,PRESETS,BASE_PRESETS,FAMILY,SHAPE_PROFILES,profile,outerRadius,surfaceDetail,fieldLimits,sanitize,OPENING_RADIUS,BASE_HEIGHT,SEAT_HEIGHT,defaultClearance,getState:()=>({...state}),getReport:()=>reports};
+  window.OpenLampTest={deformOriginalShade,buildTopCap,validateOriginalDeformation,originalParameterState,DEFORMATION_LOCK_END,ORIGINAL_SHADE_HEIGHT,weldCoincidentVertices,loadOriginalShade,ORIGINAL_SHADE_PARTS,ORIGINAL_SHADE_SHA256,buildTallerShade,tallerOuterRadius,shadeElevation,TALLER_MOUNT_INNER_RADIUS,TALLER_MOUNT_ZONE_HEIGHT,TALLER_TOP_PROFILE,TALLER_TOP_ORIGINAL_HEIGHT,TALLER_TOP_ORIGINAL_DIAMETER,buildShade,buildBase,parseStandMesh,validate,stlBinary,PRESETS,BASE_PRESETS,FAMILY,SHAPE_PROFILES,profile,outerRadius,surfaceDetail,fieldLimits,sanitize,OPENING_RADIUS,BASE_HEIGHT,SEAT_HEIGHT,defaultClearance,getState:()=>({...state}),getReport:()=>reports};
   window.addEventListener('load',init);
 })();
