@@ -686,10 +686,11 @@
     const scale=Math.min((w-95)/(2*maxR),(h-85)/vertical);
     const cx=w/2,ground=h-45,screenOffset=shadeElevation()+(viewMode==='separada'?27:0);
     const xx=r=>(cx+r*scale).toFixed(1), yy=z=>(ground-z*scale).toFixed(1);
+    const radius=(t,a)=>window.OpenLampBasics?.shapeFor(state)?window.OpenLampBasics.radiusAt(t,state):outerRadius(t,a,state);
     let outline=`M ${xx(0)} ${yy(screenOffset+state.height)}`;
-    for(let k=99;k>=0;k--){const t=k/100;outline+=` L ${xx(outerRadius(t,0,state))} ${yy(screenOffset+t*state.height)}`;}
-    outline+=` L ${xx(-outerRadius(0,0,state))} ${yy(screenOffset)}`;
-    for(let k=1;k<=99;k++){const t=k/100;outline+=` L ${xx(-outerRadius(t,Math.PI,state))} ${yy(screenOffset+t*state.height)}`;}
+    for(let k=99;k>=0;k--){const t=k/100;outline+=` L ${xx(radius(t,0))} ${yy(screenOffset+t*state.height)}`;}
+    outline+=` L ${xx(-radius(0,0))} ${yy(screenOffset)}`;
+    for(let k=1;k<=99;k++){const t=k/100;outline+=` L ${xx(-radius(t,Math.PI))} ${yy(screenOffset+t*state.height)}`;}
     outline+=' Z';
     const br=Math.max(62,state.diameter*.43),footTop=yy(BASE_HEIGHT),footBottom=yy(0);
     const bp=currentBasePreset(),isWibble=bp.id==='wibble';
