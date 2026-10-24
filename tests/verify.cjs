@@ -4,8 +4,9 @@ const assert=require('node:assert/strict');
 const ctx={window:{addEventListener:()=>{}},console,Math,Float32Array,Uint32Array,ArrayBuffer,DataView,Map,Number,Error};
 vm.runInNewContext(fs.readFileSync(__dirname+'/../app.js','utf8'),ctx,{filename:'app.js'});
 const o=ctx.window.OpenLampTest;
-assert.equal(o.PRESETS.length,6,'collection must have six curated designs');
-assert.deepEqual([...new Set(o.PRESETS.map(p=>p.family))].sort(),['calm','petal','soft']);
+assert.equal(o.PRESETS.filter(p=>!p.archived).length,4,'expect four visible desk lamp silhouettes');
+assert.equal(o.PRESETS.length,10,'keep six legacy IDs for backwards-compatible JSON loading');
+assert.deepEqual([...new Set(o.PRESETS.map(p=>p.family))].sort(),['atelier','calm','petal','soft']);
 const extremes=[
   {...o.PRESETS.find(p=>p.id==='cilindrica'),height:80,diameter:110,thickness:3.5,ribDepth:1.8,ribCount:44,twist:15,clearance:0.2},
   {...o.PRESETS.find(p=>p.id==='petalo'),height:280,diameter:280,thickness:1.2,ribDepth:3.5,ribCount:14,twist:-20,clearance:0.8},
@@ -64,4 +65,4 @@ assert.equal(migrated.ribCount,52);
 assert.equal(migrated.clearance,0.75);
 assert.equal(migrated.family,'soft');
 assert.equal(o.sanitize(legacy).ribDepth,3.5);
-console.log(`PASS: 6 presets + 3 limit cases, ${cases.length*2} binary STL files, unchanged mounting interface, surface continuity and legacy JSON migration.`);
+console.log(`PASS: 4 current + 6 legacy presets + 3 limit cases, ${cases.length*2} binary STL files, unchanged mounting interface, surface continuity and legacy JSON migration.`);
