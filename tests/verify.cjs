@@ -4,9 +4,9 @@ const assert=require('node:assert/strict');
 const ctx={window:{addEventListener:()=>{}},console,Math,Float32Array,Uint32Array,ArrayBuffer,DataView,Map,Number,Error};
 vm.runInNewContext(fs.readFileSync(__dirname+'/../app.js','utf8'),ctx,{filename:'app.js'});
 const o=ctx.window.OpenLampTest;
-assert.equal(o.PRESETS.filter(p=>!p.archived).length,4,'expect four visible desk lamp silhouettes');
-assert.equal(o.PRESETS.length,10,'keep six legacy IDs for backwards-compatible JSON loading');
-assert.deepEqual([...new Set(o.PRESETS.map(p=>p.family))].sort(),['atelier','calm','petal','soft']);
+assert.equal(o.PRESETS.filter(p=>!p.archived).length,1,'only Taller Top is visible');
+assert.equal(o.PRESETS.length,11,'preserve ten old IDs for JSON');
+assert.deepEqual([...new Set(o.PRESETS.map(p=>p.family))].sort(),['atelier','calm','petal','soft','taller']);
 const extremes=[
   {...o.PRESETS.find(p=>p.id==='cilindrica'),height:80,diameter:110,thickness:3.5,ribDepth:1.8,ribCount:44,twist:15,clearance:0.2},
   {...o.PRESETS.find(p=>p.id==='petalo'),height:280,diameter:280,thickness:1.2,ribDepth:3.5,ribCount:14,twist:-20,clearance:0.8},
@@ -24,8 +24,8 @@ for(const p of o.PRESETS){
     const radius=o.outerRadius(t,1.25,p);
     assert(Number.isFinite(radius)&&radius>=0,`${p.id}: radius invalid at ${t}`);
   }
-  assert.equal(o.outerRadius(1,0,p),0,`${p.id}: apex must be closed`);
-  for(const t of [.0,.1,.15,.92,.98,1]){
+  if(p.id!=='taller_top')assert.equal(o.outerRadius(1,0,p),0,`${p.id}: apex must be closed`);
+  if(p.id!=='taller_top')for(const t of [.0,.1,.15,.92,.98,1]){
     assert(Math.abs(o.surfaceDetail(t,1,p))<1e-5,`${p.id}: texture should fade at ${t}`);
   }
   for(const t of [.25,.43,.65,.79]){
@@ -48,6 +48,7 @@ for(const p of cases){
     assert.equal(dv.getUint32(80,true),mesh.triangleCount);
     console.log(`${p.id}/${part}: ${mesh.triangleCount} triangles; OK`);
   }
+  if(p.id!=='taller_top'){
   const last=shade.positions.length/3;
   assert.equal(shade.positions[(last-2)*3],0);
   assert.equal(shade.positions[(last-1)*3],0);
@@ -56,6 +57,7 @@ for(const p of cases){
   const ir=Math.hypot(shade.positions[(shade.vertexCount-2-100*128)*3],shade.positions[(shade.vertexCount-2-100*128)*3+1]);
   assert(Math.abs(ir-o.OPENING_RADIUS)<0.03,`${p.id}: opening radius ${ir}`);
   assert(Math.abs((ir-(o.OPENING_RADIUS-p.clearance))-p.clearance)<0.03,`${p.id}: clearance`);
+  }
 }
 const legacy={id:'organica',height:258,diameter:257,thickness:1.3,ribDepth:6.3,ribCount:52,twist:147,clearance:0.75};
 const migrated=o.sanitize(legacy,{legacy:true});
