@@ -798,7 +798,7 @@
     });
     byId('top-mode').addEventListener('change',e=>{state.topMode=e.target.value;refreshControls();timer();});
     byId('advanced-design').addEventListener('change',refreshControls);
-    byId('reset-design').addEventListener('click',()=>{state=suggestedParams(state.id);refreshControls();timer();});
+    byId('reset-design').addEventListener('click',()=>{state={...suggestedParams(state.id),surfaceIntensity:1};refreshControls();timer();document.dispatchEvent(new Event('openlamp:project-loaded'));});
     document.querySelectorAll('.view-mode').forEach(btn=>btn.addEventListener('click',()=>{viewMode=btn.dataset.view;refreshControls();if(meshes)plotMeshes(meshes).catch(console.warn);}));
     byId('download-shade').addEventListener('click',()=>{if(!reports?.shade?.ok)return;fileDownload(stlBinary(meshes.shade),state.id==='tallertop_original'?'tallertop-original-exacto.stl':`openlamp-pantalla-${state.id}.stl`,'model/stl');});
     byId('download-cap').addEventListener('click',()=>{if(!meshes?.cap||!reports?.cap?.ok)return;
