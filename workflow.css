@@ -1,0 +1,67 @@
+/* OpenLamp Studio — five-stage Desk Lamp Generator.
+ * Structural styles only; geometry viewer/controls remain the original UI.
+ */
+.ol-wizard .layout{grid-template-columns:195px 335px minmax(0,1fr);min-height:calc(100vh - 107px)}
+.ol-rail{background:#f4eee5;border-right:1px solid #ddd6c9;padding:26px 14px;display:flex;flex-direction:column;gap:9px;min-width:0}
+.ol-rail-title{font:700 10px ui-monospace,monospace;letter-spacing:.17em;color:#8b877e;padding:0 8px 14px}
+.ol-step-nav{display:flex;align-items:flex-start;text-align:left;gap:11px;background:transparent;border:1px solid transparent;color:#666962;padding:13px 9px;border-radius:11px;width:100%}
+.ol-step-nav:hover{background:#fefbf5}
+.ol-step-nav.active{background:#fff7e6;border-color:#d2b788;box-shadow:0 2px 8px #493e2e12;color:#554a3c}
+.ol-step-number{font:700 11px ui-monospace,monospace;color:#8a8d81;background:#e8e4db;min-width:30px;height:29px;display:grid;place-items:center;border-radius:7px}
+.ol-step-nav.active .ol-step-number{background:#ba8751;color:white}
+.ol-step-info{display:flex;flex-direction:column;gap:4px;min-width:0}
+.ol-step-info strong{font-size:12px;font-weight:730}
+.ol-step-info small{font-size:10px;line-height:1.4;color:#8b8b81}
+.ol-rail-footer{margin-top:auto;font:9px ui-monospace,monospace;letter-spacing:.1em;line-height:1.5;color:#929188}
+.ol-wizard .sidebar{padding:24px 23px 25px;max-height:calc(100vh - 105px)}
+.ol-panel-heading{font:700 10px ui-monospace,monospace;letter-spacing:.16em;color:#898e80;margin-bottom:22px}
+.ol-step-pane[hidden]{display:none!important}
+.ol-step-pane .eyebrow{margin-top:17px}
+.ol-step-pane h1{font-size:26px}
+.ol-title{font-size:21px;font-weight:640;letter-spacing:-.4px;margin:0 0 8px}
+.ol-subtitle{font-size:12px;line-height:1.6;color:#7d8077;margin:0 0 20px}
+.ol-field{display:flex;flex-direction:column;gap:9px;margin:0 0 17px;color:#50594c;font-size:12px}
+.ol-field>span{font-weight:650}
+.ol-input{width:100%;min-width:0;background:white;border:1px solid #ddd9d1;color:#3d443d;border-radius:8px;padding:12px 11px;font:inherit}
+.ol-input:focus{outline:2px solid #95a98a;outline-offset:2px}
+.ol-two-col{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.ol-message{background:#f7f1e4;color:#6d6556;border-left:3px solid #c9a777;padding:12px 13px;margin:18px 0;line-height:1.55;font-size:11px}
+.ol-message strong{display:block;color:#6b5540;font-size:12px}
+.ol-message p{margin:6px 0 0}
+.ol-checklist{display:flex;flex-direction:column;gap:8px}
+.ol-check-item{display:flex;align-items:center;justify-content:space-between;gap:8px;background:#fff;border:1px solid #dedfd6;border-radius:8px;padding:11px 9px;font-size:11px;line-height:1.5}
+.ol-check-item strong{color:#4b554b;white-space:nowrap}
+.ol-check-item span{color:#7e827c;text-align:right}
+.ol-check-item.warn{border-left:3px solid #c8ab77}
+.ol-check-item.ok{border-left:3px solid #7eaa81}
+.ol-wizard .ol-step-pane .export{align-items:stretch;margin-top:20px}
+.ol-wizard .ol-step-pane .export-buttons{display:flex;flex-direction:column;gap:8px}
+.ol-wizard .ol-step-pane .export-buttons button{width:100%;min-height:39px;max-width:none}
+.ol-wizard .workspace-bottom{align-items:center}
+.ol-wizard .workspace{padding:23px 24px}
+.ol-wizard .viewer-shell{margin-top:15px}
+.ol-wizard .topbar{height:70px}
+.ol-wizard .workspace-bottom{margin-top:12px}
+.ol-wizard .stats{width:100%;max-width:none}
+@media(max-width:1120px){
+ .ol-wizard .layout{grid-template-columns:142px 275px minmax(0,1fr)}
+ .ol-wizard .sidebar{padding:19px 15px}
+ .ol-rail{padding:18px 7px}
+ .ol-step-nav{gap:6px;padding:11px 5px}
+ .ol-step-number{min-width:24px;height:25px;font-size:10px}
+ .ol-step-info small{font-size:9px}
+ .ol-wizard .workspace{padding:18px}
+}
+@media(max-width:760px){
+ .ol-wizard .layout{display:flex;flex-direction:column}
+ .ol-rail{flex-direction:row;overflow-x:auto;padding:8px 10px;gap:6px}
+ .ol-rail-title,.ol-rail-footer{display:none}
+ .ol-step-nav{min-width:106px;flex:1;gap:5px;padding:9px}
+ .ol-step-info strong{font-size:11px}
+ .ol-step-info small{display:none}
+ .ol-wizard .sidebar{max-height:none;overflow:visible;padding:17px 20px}
+ .ol-wizard .workspace{min-height:520px}
+ .ol-wizard .viewer-shell{height:420px;min-height:350px;flex:none}
+ .ol-wizard .workspace-bottom{flex-direction:column;align-items:stretch}
+ .ol-wizard .stats{grid-template-columns:repeat(4,minmax(0,1fr))}
+}
