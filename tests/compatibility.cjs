@@ -10,7 +10,15 @@ assert(empty.blockers.some(x=>x.includes('kit')));
 const unknown=C.evaluate({baseId:'wibble',hardware:{type:'led-low-voltage',sku:'kit-001',diameterMm:30,heightMm:50,cableDiameterMm:4}});
 assert.equal(unknown.status,'blocked');
 assert.equal(unknown.knownMount,false);
-assert(unknown.blockers.some(x=>x.includes('interfaz')));
+const wibblePrototype=C.evaluate({baseId:'wibble',adapterGenerated:true,
+  hardware:{type:'led-low-voltage',sku:'kit-prototype',diameterMm:30,heightMm:50,cableDiameterMm:4}});
+assert.equal(wibblePrototype.adapterPrototype,true);
+assert.equal(wibblePrototype.knownMount,false);
+assert.equal(wibblePrototype.compatibleForProduction,false);
+assert.equal(wibblePrototype.assemblyExportAllowed,false);
+assert(wibblePrototype.warnings.some(x=>x.includes('retención')));
+
+assert(unknown.blockers.some(x=>x.includes('adaptador geométrico')));
 const measured=C.evaluate({baseId:'flat',hardware:{type:'led-low-voltage',sku:'Test Example',diameterMm:30,heightMm:50,cableDiameterMm:4}});
 assert.equal(measured.status,'prototype');
 assert.equal(measured.compatibleForProduction,false);
