@@ -112,7 +112,7 @@
     {id:'flat',name:'Taller Stand',author:'Usuario',type:'mesh',experimental:false,height:35.59607,diameter:131.19819,asset:'assets/stands/taller-stand.olmesh.gz',preview:'assets/stands/taller-stand-reference.png',filename:'openlamp-taller-stand.stl'},
     {id:'wibble',name:'Wibble Stand',author:'Abstractia Design',type:'mesh',height:199.37149,diameter:162.87946,asset:'assets/stands/wibble-stand.olmesh.gz',preview:'assets/stands/wibble-reference.webp',filename:'abstractia-wibble-original-stand.stl'},
   ];
-  let state={...PRESETS[0],clearance:defaultClearance,surfaceIntensity:1,hardware:{type:'none'}};
+  let state={...PRESETS[0],clearance:defaultClearance,surfaceIntensity:1,hardware:{type:'none'},shadeDesign:{family:'original',offsets:[0,0,0,0,0]}};
   let selectedBase='flat',standMeshes=new Map(),standPromises=new Map(),renderRequest=0;
   let meshes=null, reports=null, plotPrepared=false, pendingRender=0, viewMode='ensamblada';
   const byId=id=>document.getElementById(id);
@@ -143,6 +143,7 @@
     const intensity=Number(raw.surfaceIntensity??1);
     out.surfaceIntensity=Number.isFinite(intensity)?clamp(intensity,0.88,1.06):1;
     out.hardware=window.OpenLampCompatibility?.sanitizeHardware(raw.hardware)||{type:'none'};
+    out.shadeDesign=window.OpenLampShade?.normalize(raw.shadeDesign)||{family:'original',offsets:[0,0,0,0,0]};
     return out;
   }
   function bezierPoint(segment,u){
@@ -210,7 +211,7 @@
     const radiused=collar+(body-collar)*blend;
     return Math.max(0,radiused*crownFactor(t,p)+surfaceDetail(t,theta,p));
   }
-  function suggestedParams(id){const p=presetById(id);return {...p,clearance:state.clearance,surfaceIntensity:state.surfaceIntensity??1,hardware:state.hardware||{type:'none'}};}
+  function suggestedParams(id){const p=presetById(id);return {...p,clearance:state.clearance,surfaceIntensity:state.surfaceIntensity??1,hardware:state.hardware||{type:'none'},shadeDesign:{family:'original',offsets:[0,0,0,0,0]}};}
   function exceedsCurated(p){
     return ['ribDepth','ribCount','twist'].some(key=>{
       const [a,b]=fieldLimits(key,p);return p[key]<a||p[key]>b;
@@ -407,7 +408,12 @@
         const mesh=parseStandMesh(raw);
         if(mesh.vertexCount!==ORIGINAL_SHADE_VERTICES||mesh.triangleCount!==ORIGINAL_SHADE_FACES)
           throw new Error('No coincide la geometría original');
-        originalShade=mesh;return mesh;
+        originalShade=mesh;
+        if(typeof document!=='undefined'&&window.OpenLampShade){
+          document.dispatchEvent(new CustomEvent('openlamp:shade-source',{detail:{
+            envelope:window.OpenLampShade.extractEnvelope(mesh,ORIGINAL_SHADE_Z_MIN,ORIGINAL_SHADE_Z_MAX)}}));
+        }
+        return mesh;
       })().catch(e=>{originalShadePromise=null;throw e;});
     }
     return originalShadePromise;
@@ -420,7 +426,8 @@
   const DEFORMATION_BLEND_END=DEFORMATION_LOCK_END+35;
   function originalParameterState(p){
     return Math.abs(p.height-ORIGINAL_SHADE_HEIGHT)<0.001 && Math.abs(p.diameter-131.198182)<0.001 &&
-      (p.waist||0)===0 && (p.curvature||0)===0 && (p.surfaceIntensity??1)===1;
+      (p.waist||0)===0 && (p.curvature||0)===0 && (p.surfaceIntensity??1)===1 &&
+      (!p.shadeDesign||p.shadeDesign.family==='original');
   }
   // Compute the radial envelope of the original OBJ once. Keep mesh indices and
   // vertex coordinates unchanged at intensity=1. This is not a new rib generator.
@@ -442,6 +449,12 @@
     if(originalParameterState(p))return source;
     const h=Number(p.height),d=Number(p.diameter),waist=Number(p.waist||0),curve=Number(p.curvature||0);
     const intensity=Number(p.surfaceIntensity??1),surface=surfaceReference(source);
+    const design=p.shadeDesign||{family:'original',offsets:[0,0,0,0,0]};
+    const designCurve=window.OpenLampShade?.makeCurve(design);
+    if(design.family!=='original'&&window.OpenLampShade){
+      const report=window.OpenLampShade.validateShape(design,h,d);
+      if(!report.ok)throw new Error('Perfil fuera de familia: '+report.problems.join(', '));
+    }
     if(![h,d,waist,curve,intensity].every(Number.isFinite)||intensity<0.88||intensity>1.06||h<195||h>265.2||d<131.198182||d>175.2||
       Math.abs(waist)>8||Math.abs(curve)>8)throw new Error('Parámetros fuera de límites seguros');
     const base=source.positions,out=new Float32Array(base.length);
@@ -463,7 +476,8 @@
       const bin=clamp(Math.floor((z-ORIGINAL_SHADE_Z_MIN)/surface.step),0,surface.avg.length-1);
       const detail=(radius-surface.avg[bin])*(intensity-1)*
         smoothstep((z-DEFORMATION_LOCK_END)/30);
-      const offset=width+waistDelta+curveDelta+detail;
+      const profileDelta=designCurve&&design.family!=='original'?designCurve(t)*blend:0;
+      const offset=width+waistDelta+curveDelta+detail+profileDelta;
       const factor=radius>0.001?Math.max(0.15,(radius+offset)/radius):1;
       out[i]=x*factor;out[i+1]=y*factor;out[i+2]=z+dh*t;
     }
@@ -798,7 +812,7 @@
     });
     byId('top-mode').addEventListener('change',e=>{state.topMode=e.target.value;refreshControls();timer();});
     byId('advanced-design').addEventListener('change',refreshControls);
-    byId('reset-design').addEventListener('click',()=>{state={...suggestedParams(state.id),surfaceIntensity:1};refreshControls();timer();document.dispatchEvent(new Event('openlamp:project-loaded'));});
+    byId('reset-design').addEventListener('click',()=>{state={...suggestedParams(state.id)};refreshControls();timer();document.dispatchEvent(new Event('openlamp:project-loaded'));});
     document.querySelectorAll('.view-mode').forEach(btn=>btn.addEventListener('click',()=>{viewMode=btn.dataset.view;refreshControls();if(meshes)plotMeshes(meshes).catch(console.warn);}));
     byId('download-shade').addEventListener('click',()=>{if(!reports?.shade?.ok)return;fileDownload(stlBinary(meshes.shade),state.id==='tallertop_original'?'tallertop-original-exacto.stl':`openlamp-pantalla-${state.id}.stl`,'model/stl');});
     byId('download-cap').addEventListener('click',()=>{if(!meshes?.cap||!reports?.cap?.ok)return;
@@ -808,11 +822,11 @@
       const name=currentBasePreset().filename;
       fileDownload(stlBinary(meshes.base),name,'model/stl');
     });
-    byId('save-json').addEventListener('click',()=>fileDownload(JSON.stringify({app:'openlamp-studio',version:6,params:state,baseId:selectedBase},null,2),`openlamp-${state.id}.json`,'application/json'));
+    byId('save-json').addEventListener('click',()=>fileDownload(JSON.stringify({app:'openlamp-studio',version:7,params:state,baseId:selectedBase},null,2),`openlamp-${state.id}.json`,'application/json'));
     byId('load-json').addEventListener('click',()=>byId('json-file').click());
     byId('json-file').addEventListener('change',async e=>{const file=e.target.files?.[0];if(!file)return;try{
       const data=JSON.parse(await file.text());
-      if(data.app!=='openlamp-studio'||![1,2,3,4,5,6].includes(data.version))throw new Error('Formato incompatible');
+      if(data.app!=='openlamp-studio'||![1,2,3,4,5,6,7].includes(data.version))throw new Error('Formato incompatible');
       state=sanitize(data.params,{legacy:data.version<3});
       selectedBase=BASE_PRESETS.some(p=>p.id===data.baseId)?data.baseId:'flat';
       if(exceedsCurated(state))byId('advanced-design').checked=true;
@@ -822,6 +836,17 @@
   }
   window.OpenLampBridge={
     getProject:()=>({params:{...state},baseId:selectedBase}),
+    setShadeDesign:design=>{
+      if(state.id!=='tallertop_original')throw new Error('Editor visual disponible para Taller Top');
+      const next=window.OpenLampShade.normalize(design);
+      const f=window.OpenLampShade.families[next.family];
+      state.shadeDesign=next;
+      state.height=Math.max(f.height[0],Math.min(f.height[1],state.height));
+      state.diameter=Math.max(f.diameter[0],Math.min(f.diameter[1],state.diameter));
+      state.waist=0;state.curvature=0;
+      refreshControls();timer();
+      document.dispatchEvent(new Event('openlamp:shade-updated'));
+    },
     setHardware:hardware=>{
       state.hardware=window.OpenLampCompatibility?.sanitizeHardware(hardware)||{type:'none'};
       document.dispatchEvent(new Event('openlamp:project-updated'));
