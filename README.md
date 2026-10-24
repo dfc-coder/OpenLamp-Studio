@@ -1,3 +1,25 @@
+# OpenLamp Studio — Taller Stand reparado sin alterar el diseño
+
+La base `newstandfortaller.obj` ya es **watertight/manifold** tras unificar únicamente vértices con coordenadas Float32 idénticas. Se mantienen los **19.196 triángulos** del OBJ y todas las coordenadas de cada esquina de cada triángulo, sin desplazamiento ni simplificación. Se reducen los vértices redundantes de 19.210 a 9.600; la validación exige orientación consistente, ausencia de caras degeneradas, bordes cerrados y volumen positivo. El STL del stand se exporta desde la malla corregida y no lleva ninguna marca «experimental: no manifold».
+
+La pantalla `tallertop.obj` sigue siendo **la malla original exacta**, con **342.396 vértices y 684.792 triángulos**, sin parametrización ni reinterpretación. Los dos modelos se alinean usando el sistema de coordenadas CAD compartido. Entre el diámetro interior inferior de la pantalla (radio aproximado 35,044 mm) y el borde superior del asiento de la base (radio máximo aproximadamente 34,88 mm) hay una holgura radial nominal de alrededor de 0,16 mm. Es una comprobación dimensional, **no una prueba física de encastre**.
+
+## Validación de release
+
+```sh
+node --check app.js
+node tests/verify.cjs
+node tests/original_top.cjs
+node tests/taller_top.cjs
+node tests/taller_base.cjs
+node tests/stand.cjs
+node tests/export.cjs
+```
+
+La geometría aprobada no equivale a certificación eléctrica, térmica ni de estabilidad. Antes de vender una lámpara física es necesario imprimir y probar el conjunto.
+
+---
+
 # Taller Top — OBJ original sin reinterpretación
 
 El único preset visible usa **342.396 vértices y 684.792 triángulos originales** de `tallertop.obj`. No aplica reconstrucción Bézier, suavizado, reducción ni deformaciones. Las coordenadas se almacenan como Float32 con desviación máxima numérica de 0,000000005 mm. Sus 19 partes gzip se recomponen con SHA-256.
@@ -22,7 +44,7 @@ Generador web de pantallas para lámparas de escritorio. **Solo Taller Top apare
 
 La abertura inferior conserva un radio interior de **35,044 mm (Ø 70,089 mm)**, medido en el modelo fuente. Los primeros 20 mm del perfil exterior no se escalan al modificar el diámetro; la zona de 14,173 mm inferior mantiene su altura y la posición relativa con la base Taller Stand.
 
-**Importante:** la pantalla es una *reconstrucción paramétrica* de la silueta longitudinal mediante 37 muestras, no una copia exacta de la malla OBJ original. La base Taller Stand es una malla no-manifold, exportable con advertencia experimental. La coincidencia matemática del asiento no garantiza un encastre FDM físico.
+**Importante:** la pantalla es una *reconstrucción paramétrica* de la silueta longitudinal mediante 37 muestras, no una copia exacta de la malla OBJ original. La base Taller Stand se repara únicamente al unir vértices coincidentes; la geometría queda manifold y no se altera su superficie. La coincidencia matemática del asiento no garantiza un encastre FDM físico.
 
 ## Ejecutar y validar
 
