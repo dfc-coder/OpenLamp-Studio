@@ -115,6 +115,7 @@
   let state={...PRESETS[0],clearance:defaultClearance,surfaceIntensity:1,hardware:{type:'none'},shadeDesign:{family:'original',offsets:[0,0,0,0,0]}};
   let selectedBase='flat',standMeshes=new Map(),standPromises=new Map(),renderRequest=0;
   let meshes=null, reports=null, plotPrepared=false, pendingRender=0, viewMode='ensamblada';
+  let lastShadeDimensions=null;
   const byId=id=>document.getElementById(id);
   const clamp=(x,a,b)=>Math.max(a,Math.min(x,b));
   const smoothstep=x=>{const y=clamp(x,0,1);return y*y*(3-2*y);};
@@ -781,7 +782,13 @@
       const baseAccepted=baseReport.ok;
       meshes={shade,base,cap};reports={shade:shadeReport,base:baseReport,baseAccepted,cap:cap?{ok:true}:null};
       byId('s-height').textContent=`${Math.round(exact?Math.max(baseHeight(),ORIGINAL_SHADE_Z_MIN+state.height+shadeElevation()):state.height+shadeElevation())} mm`;
-      let maxR=0;for(let i=0;i<shade.positions.length;i+=3)maxR=Math.max(maxR,Math.hypot(shade.positions[i],shade.positions[i+1]));
+      let maxR=0,lowestZ=Infinity,highestZ=-Infinity;
+      for(let i=0;i<shade.positions.length;i+=3){
+        maxR=Math.max(maxR,Math.hypot(shade.positions[i],shade.positions[i+1]));
+        lowestZ=Math.min(lowestZ,shade.positions[i+2]);
+        highestZ=Math.max(highestZ,shade.positions[i+2]);
+      }
+      lastShadeDimensions={heightMm:highestZ-lowestZ,diameterMm:2*maxR};
       byId('s-diameter').textContent=`${Math.ceil(2*maxR)} mm`;
       byId('s-tris').textContent=(shade.triangleCount+base.triangleCount+(cap?.triangleCount||0)).toLocaleString('es-AR');
       byId('s-valid').textContent=shadeReport.ok&&baseAccepted?(cap?'Tres sólidos ✓':'Dos sólidos ✓'):'Revisar';
@@ -860,6 +867,14 @@
       if(!Number.isFinite(v)||v<0.88||v>1.06)throw new Error('Intensidad de superficie fuera de límites');
       state.surfaceIntensity=v;refreshControls();timer();
     },
+    getShadeInterface:()=>({
+      modelId:state.id,familyId:state.shadeDesign?.family||'original',
+      mount:{innerRadiusMm:TALLER_MOUNT_INNER_RADIUS,protectedHeightMm:20,
+        fitStatus:'physical-test-required'},
+      actualDimensions:lastShadeDimensions?{...lastShadeDimensions}:null,
+      closure:state.topMode,geometryValid:!!reports?.shade?.ok,
+      hardwareClearanceValidated:false,
+    }),
     getStatus:()=>({shadeValid:!!reports?.shade?.ok,baseValid:!!reports?.base?.ok,
       baseId:selectedBase,sourceModelId:state.id}),
   };
