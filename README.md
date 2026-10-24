@@ -1,3 +1,21 @@
+# OpenLamp Studio v1.2 — Distinct basic shade silhouettes
+
+The seven silhouette families now have independent, recognizable radial design signatures. These are not merely the same profile with different height/width presets:
+
+- **Cylinder:** straight-sided body
+- **Cone:** constant tapered wall
+- **Dome:** straight-sided lower body with a rounded upper shoulder
+- **Bell:** strongly flared lower lip and a narrow upper neck (nonlinear)
+- **Sphere:** centered, vertically symmetric rounded volume above the collar transition
+- **Pear:** deliberately low, broad belly (~34% height) and narrow upper neck
+- **Disc:** narrow bottom support rising into a broad upper plate
+
+The shape selector thumbnails are drawn from the SAME radius function used for the real 3D mesh. This prevents decorative glyphs from obscuring poor similarity. All profiles retain the original nominal mechanical collar. Torus and Free Curve have been removed from the user interface because they are not implemented.
+
+`tests/basic-shade.cjs` compares ALL seven normalized radius signatures with the SAME height/diameter; it rejects profiles with insufficient distinctness, checks Sphere symmetry and Pear lower-belly asymmetry, and verifies a true Bell flare. The browser test verifies unique thumbnail geometry and no inactive options.
+
+---
+
 # OpenLamp Studio v1.1 — Basic Desk Lamp Shade Generator
 
 **New primary Shade flow:** seven parametric solids of revolution, replacing the previous Taller Top OBJ-led designer in the public interface.
@@ -12,7 +30,7 @@
 | Pear | Height, width, belly position, wall |
 | Disc | Height, width, disc height distribution, wall |
 
-**Torus and Free Curve are disabled future placeholders** — not claimed as implemented. Shape surfaces start smooth; in step Surface, Soft Ribs and Defined Ribs add a restrained relief that fades to zero in the protected lower mounting area.
+**Torus and Free Curve are not in the selector** because they are not implemented. Shape surfaces start smooth; in step Surface, Soft Ribs and Defined Ribs add a restrained relief that fades to zero in the protected lower mounting area.
 
 **Mechanical interface:** each shape uses a nominal 35.044-mm inner mating radius and a 14.17-mm insertion region corresponding to the original Taller Stand CAD dimensions. The stand's geometry is unchanged. Printing-fit, assembly strength, kit compatibility and safety are NOT verified physically. Wibble remains independently unverified.
 
