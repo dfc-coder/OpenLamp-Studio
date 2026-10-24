@@ -86,10 +86,8 @@
    const rect=$('ol-profile-svg').getBoundingClientRect();
    drag={index:idx,startX:e.clientX,scale:W/rect.width,initial:copy(projectShape())};
    active=copy(drag.initial);
-   e.currentTarget.setPointerCapture(e.pointerId);
-   e.currentTarget.addEventListener('pointermove',moveDrag);
-   e.currentTarget.addEventListener('pointerup',endDrag,{once:true});
-   e.currentTarget.addEventListener('pointercancel',endDrag,{once:true});
+   // Capture on the stable SVG root: handles are redrawn during dragging.
+   $('ol-profile-svg').setPointerCapture(e.pointerId);
  }
  function moveDrag(e){
    if(!drag)return;
@@ -118,6 +116,9 @@
    const subtitle=node('p','ol-profile-subtitle','Arrastrá los puntos de perfil en horizontal. La línea punteada representa la silueta original; el acople inferior no se modifica.');
    const svg=svgEl('svg',{id:'ol-profile-svg',viewBox:`0 0 ${W} ${H}`,role:'group',
      'aria-label':'Editor de perfil lateral con puntos restringidos'});
+   svg.addEventListener('pointermove',moveDrag);
+   svg.addEventListener('pointerup',endDrag);
+   svg.addEventListener('pointercancel',endDrag);
    const footer=node('div','ol-profile-actions');
    const undo=node('button','secondary','Deshacer');undo.id='ol-profile-undo';undo.addEventListener('click',restore);
    const redoBtn=node('button','secondary','Rehacer');redoBtn.id='ol-profile-redo';redoBtn.addEventListener('click',redo);
