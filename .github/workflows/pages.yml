@@ -37,6 +37,7 @@ jobs:
           node tests/original_top.cjs
           node tests/stand.cjs
           node tests/taller_base.cjs
+          node tests/assembly.cjs
           node tests/export.cjs
 
       - name: Empaquetar exclusivamente la aplicación
