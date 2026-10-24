@@ -734,8 +734,10 @@
       let [lo,hi]=fieldLimits(key,state,byId('advanced-design').checked);
       // Historical projects remain editable without silently discarding values.
       lo=Math.min(lo,state[key]);hi=Math.max(hi,state[key]);
-      if(exact&&key==='height'){lo=195.142662;hi=265.142662;input.step='1';}
-      if(exact&&key==='diameter'){lo=131.198182;hi=175.198182;input.step='0.5';}
+      const family=state.shadeDesign?.family||'original';
+      const limits=window.OpenLampShade?.families[family];
+      if(exact&&key==='height'){lo=limits?limits.height[0]:195.142662;hi=limits?limits.height[1]:265.142662;input.step='1';}
+      if(exact&&key==='diameter'){lo=limits?limits.diameter[0]:131.198182;hi=limits?limits.diameter[1]:175.198182;input.step='0.5';}
       input.min=lo;input.max=hi;input.value=state[key];
       const display=exact&&['height','diameter'].includes(key)?state[key].toFixed(2).replace('.',','):state[key].toLocaleString('es-AR');
       byId('out-'+key).textContent=display+(unit?` ${unit}`:'');
@@ -809,6 +811,7 @@
     byId('controls').innerHTML=FIELDS.map(([key,label,unit,min,max,step])=>`<div class="control"><div class="control-head"><label for="in-${key}">${label}</label><output id="out-${key}"></output></div><input id="in-${key}" type="range" min="${min}" max="${max}" step="${step}" aria-label="${label}" /></div>`).join('');
     for(const [key] of FIELDS)byId('in-'+key).addEventListener('input',e=>{
       state[key]=Number(e.target.value);refreshControls();timer();
+      if(key==='height'||key==='diameter')document.dispatchEvent(new Event('openlamp:shade-updated'));
     });
     byId('top-mode').addEventListener('change',e=>{state.topMode=e.target.value;refreshControls();timer();});
     byId('advanced-design').addEventListener('change',refreshControls);
