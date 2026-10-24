@@ -1,0 +1,25 @@
+// Imported user OBJ validation: visual/exportable experimental mesh, NOT manifold.
+const fs=require('node:fs');
+const path=require('node:path');
+const zlib=require('node:zlib');
+const vm=require('node:vm');
+const assert=require('node:assert/strict');
+const context={window:{addEventListener:()=>{}},console,Math,Float32Array,Uint32Array,ArrayBuffer,DataView,Map,Number,Error};
+vm.runInNewContext(fs.readFileSync(path.join(__dirname,'..','app.js'),'utf8'),context,{filename:'app.js'});
+const api=context.window.OpenLampTest;
+const compressed=fs.readFileSync(path.join(__dirname,'..','assets/stands/taller-stand.olmesh.gz'));
+const raw=zlib.gunzipSync(compressed);
+const buffer=raw.buffer.slice(raw.byteOffset,raw.byteOffset+raw.byteLength);
+const mesh=api.parseStandMesh(buffer);
+const quality=api.validate(mesh);
+assert.equal(mesh.triangleCount,19196);
+assert.equal(mesh.vertexCount,19210);
+assert.equal(quality.finite,true);
+assert.equal(quality.degenerate,0);
+assert(quality.volume>0);
+assert.equal(quality.ok,false,'OBJ must not be presented as a validated manifold solid');
+const stl=api.stlBinary(mesh);
+assert.equal(stl.byteLength,84+mesh.triangleCount*50);
+const dv=new DataView(stl);
+assert.equal(dv.getUint32(80,true),mesh.triangleCount);
+console.log('PASS imported Taller Stand:',mesh.triangleCount,'triangles; valid data for experimental STL, NOT manifold');
