@@ -20,3 +20,10 @@ jobs:
           python -m playwright install --with-deps chromium
       - name: Exercise five-step Shade workflow
         run: python tests/browser_shade.py
+      - name: Upload 2D family-review previews
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: shade-family-profiles
+          path: artifacts/shade/*.png
+          if-no-files-found: ignore
