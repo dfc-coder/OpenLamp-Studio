@@ -86,17 +86,18 @@
   const GROUND_GROOVE_DEPTH=3.2, GROUND_GROOVE_WIDTH=5.5;
   const defaultClearance=0.4;
   const BASE_PRESETS = [
-    {id:'flat',name:'Plana',author:'OpenLamp Studio',type:'parametric'},
-    {id:'wibble',name:'Wibble Stand',author:'Abstractia Design',type:'mesh',height:199.37149,diameter:162.87946},
+    {id:'flat',name:'Taller Stand',author:'Usuario',type:'mesh',experimental:true,height:35.59607,diameter:131.19819,asset:'assets/stands/taller-stand.olmesh.gz',preview:'assets/stands/taller-stand-reference.png',filename:'openlamp-taller-stand-experimental.stl'},
+    {id:'wibble',name:'Wibble Stand',author:'Abstractia Design',type:'mesh',height:199.37149,diameter:162.87946,asset:'assets/stands/wibble-stand.olmesh.gz',preview:'assets/stands/wibble-reference.webp',filename:'abstractia-wibble-original-stand.stl'},
   ];
-  const WIBBLE_ASSET='assets/stands/wibble-stand.olmesh.gz';
   let state={...PRESETS[0],clearance:defaultClearance};
-  let selectedBase='wibble',standMesh=null,standPromise=null,renderRequest=0;
+  let selectedBase='wibble',standMeshes=new Map(),standPromises=new Map(),renderRequest=0;
   let meshes=null, reports=null, plotPrepared=false, pendingRender=0, viewMode='ensamblada';
   const byId=id=>document.getElementById(id);
   const clamp=(x,a,b)=>Math.max(a,Math.min(x,b));
   const smoothstep=x=>{const y=clamp(x,0,1);return y*y*(3-2*y);};
   const presetById=id=>PRESETS.find(p=>p.id===id);
+  const basePresetById=id=>BASE_PRESETS.find(p=>p.id===id)||BASE_PRESETS[0];
+  const currentBasePreset=()=>basePresetById(selectedBase);
   function fieldLimits(key,p,advanced=false){
     const field=FIELDS.find(f=>f[0]===key);
     if(!field)throw new Error('Parámetro desconocido: '+key);
@@ -245,25 +246,28 @@
     for(const index of indices)if(index>=nVerts)throw new Error('Índice fuera de rango');
     return {positions,indices,triangleCount:nFaces,vertexCount:nVerts};
   }
-  async function loadStand(){
-    if(standMesh)return standMesh;
-    if(!standPromise){
-      standPromise=(async()=>{
-        if(typeof DecompressionStream!=='function')throw new Error('Este navegador no admite descompresión de mallas gzip');
-        const response=await fetch(WIBBLE_ASSET);
-        if(!response.ok||!response.body)throw new Error('No se pudo cargar el stand Wibble (HTTP '+response.status+')');
-        const buffer=await new Response(response.body.pipeThrough(new DecompressionStream('gzip'))).arrayBuffer();
-        const mesh=parseStandMesh(buffer);
-        const quality=validate(mesh);
-        if(!quality.ok)throw new Error('El stand no pasó validación de geometría');
-        standMesh=mesh;
+  async function loadStand(id=selectedBase){
+    const preset=basePresetById(id);
+    if(standMeshes.has(id))return standMeshes.get(id);
+    if(!standPromises.has(id)){
+      const task=(async()=>{
+        if(typeof DecompressionStream!=='function')throw new Error('Este navegador no admite descompresión gzip');
+        const response=await fetch(preset.asset);
+        if(!response.ok||!response.body)throw new Error('No se pudo cargar '+preset.name+' (HTTP '+response.status+')');
+        const raw=await new Response(response.body.pipeThrough(new DecompressionStream('gzip'))).arrayBuffer();
+        const mesh=parseStandMesh(raw),report=validate(mesh);
+        if(!(report.ok||(preset.experimental&&report.finite&&report.degenerate===0&&report.volume>0))){
+          throw new Error('Malla inválida: '+preset.name);
+        }
+        standMeshes.set(id,mesh);
         return mesh;
-      })().catch(e=>{standPromise=null;throw e;});
+      })().catch(e=>{standPromises.delete(id);throw e;});
+      standPromises.set(id,task);
     }
-    return standPromise;
+    return standPromises.get(id);
   }
-  function baseHeight(){return selectedBase==='wibble'?BASE_PRESETS[1].height:BASE_HEIGHT;}
-  function baseDiameter(){return selectedBase==='wibble'?BASE_PRESETS[1].diameter:null;}
+  function baseHeight(){return currentBasePreset().height;}
+  function baseDiameter(){return currentBasePreset().diameter;}
   function channelBottom(r,theta){
     // Open underside radial cable channel: only a geometric provision, not rated strain relief.
     const x=r*Math.cos(theta),y=r*Math.sin(theta);
@@ -362,11 +366,11 @@
     for(let k=1;k<=99;k++){const t=k/100;outline+=` L ${xx(-outerRadius(t,Math.PI,state))} ${yy(screenOffset+t*state.height)}`;}
     outline+=' Z';
     const br=Math.max(62,state.diameter*.43),footTop=yy(BASE_HEIGHT),footBottom=yy(0);
-    const isWibble=selectedBase==='wibble';
-    const guide=isWibble?'Wibble Stand · montaje de pantalla SIN VERIFICAR':viewMode==='ensamblada'?'Pantalla apoyada sobre el asiento':'Pantalla y base separadas';
-    if(isWibble){
-      area.innerHTML=`<div class="wibble-fallback"><img src="assets/stands/wibble-reference.webp" alt="Referencia del stand original Wibble de Abstractia Design, fotografiado con su propia pantalla"><p>Referencia del fabricante · No representa encastre con la pantalla OpenLamp</p></div>`;
-      byId('status').textContent='Stand original cargado · Vista 3D no disponible · Acople no verificado';
+    const bp=currentBasePreset(),isWibble=bp.id==='wibble';
+    const guide='Montaje no verificado';
+    if(bp.type==='mesh'){
+      area.innerHTML=`<div class="wibble-fallback"><img src="${bp.preview}" alt="Vista de referencia de ${bp.name}"><p>Referencia visual · Montaje no verificado</p></div>`;
+      byId('status').textContent=bp.experimental?'Base OBJ experimental · Vista 3D no disponible':'Stand original · Vista 3D no disponible';
       plotPrepared=false;
       return Promise.resolve();
     }
@@ -411,8 +415,12 @@
       const active=btn.dataset.base===selectedBase;
       btn.classList.toggle('active',active);btn.setAttribute('aria-pressed',String(active));
     });
-    byId('mount-warning').hidden=selectedBase!=='wibble';
-    byId('download-base').textContent=selectedBase==='wibble'?'STL stand Wibble ↗':'STL base ↗';
+    const bp=currentBasePreset();
+    byId('mount-warning').hidden=false;
+    byId('mount-warning').textContent=bp.experimental
+      ? 'Taller Stand: OBJ importado. La malla no es manifold; STL experimental sujeto a reparación antes de imprimir.'
+      : 'Wibble Stand: montaje con la pantalla no verificado físicamente.';
+    byId('download-base').textContent='STL '+bp.name+' ↗';
     byId('current-name').textContent=preset.name;
     byId('current-family').textContent=FAMILY[preset.family].label;
     byId('curated-warning').hidden=!exceedsCurated(state);
@@ -424,26 +432,27 @@
     byId('status').textContent='Generando pantalla y base…';
     try{
       const shade=buildShade(state);
-      const base=selectedBase==='wibble'?await loadStand():buildBase(state);
+      const bp=currentBasePreset(),base=await loadStand(bp.id);
       if(requestId!==renderRequest)return;
       const shadeReport=validate(shade),baseReport=validate(base);
-      meshes={shade,base};reports={shade:shadeReport,base:baseReport};
+      const baseAccepted=baseReport.ok||(bp.experimental&&baseReport.finite&&baseReport.degenerate===0&&baseReport.volume>0);
+      meshes={shade,base};reports={shade:shadeReport,base:baseReport,baseAccepted};
       byId('s-height').textContent=`${Math.round(state.height+baseHeight())} mm`;
       let maxR=0;for(let i=0;i<shade.positions.length;i+=3)maxR=Math.max(maxR,Math.hypot(shade.positions[i],shade.positions[i+1]));
       byId('s-diameter').textContent=`${Math.ceil(2*maxR)} mm`;
       byId('s-tris').textContent=(shade.triangleCount+base.triangleCount).toLocaleString('es-AR');
-      byId('s-valid').textContent=shadeReport.ok&&baseReport.ok?'Dos sólidos ✓':'Revisar';
-      if(!shadeReport.ok||!baseReport.ok)throw new Error(`Malla inválida — pantalla: ${JSON.stringify(shadeReport)}, base: ${JSON.stringify(baseReport)}`);
-      byId('status').textContent=selectedBase==='wibble'
-        ? 'STL del stand original y pantalla listos · Montaje NO verificado'
-        : 'Geometría validada · 2 STL preparados';
+      byId('s-valid').textContent=shadeReport.ok&&baseAccepted?(bp.experimental?'Base experimental':'Dos sólidos ✓'):'Revisar';
+      if(!shadeReport.ok||!baseAccepted)throw new Error('La geometría no superó la validación');
+      byId('status').textContent=bp.experimental
+        ? 'Pantalla validada · Taller Stand experimental (reparación de malla pendiente)'
+        : 'Stand Wibble y pantalla listos · Montaje NO verificado';
       for(const id of ['download-shade','download-base'])byId(id).disabled=false;
       try{await plotMeshes(meshes);}catch(err){byId('status').textContent='STL preparados · No se pudo cargar el visor';console.warn(err);}
     }catch(e){byId('status').textContent='Error: '+(e.message||e);byId('s-valid').textContent='Error';console.error(e);}
   }
   function init(){
     byId('base-presets').innerHTML=BASE_PRESETS.map(p=>
-      `<button type="button" class="base-preset" data-base="${p.id}" aria-pressed="false"><strong>${p.name}</strong><span>${p.id==='wibble'?'Abstractia Design · Malla original':'Base circular paramétrica'}</span></button>`).join('');
+      `<button type="button" class="base-preset" data-base="${p.id}" aria-pressed="false"><strong>${p.name}</strong><span>${p.id==='wibble'?'Abstractia Design · Malla original':'Modelo OBJ · experimental'}</span></button>`).join('');
     document.querySelectorAll('.base-preset').forEach(btn=>btn.addEventListener('click',()=>{
       selectedBase=btn.dataset.base;
       refreshControls();timer();
@@ -462,8 +471,8 @@
     byId('reset-design').addEventListener('click',()=>{state=suggestedParams(state.id);refreshControls();timer();});
     document.querySelectorAll('.view-mode').forEach(btn=>btn.addEventListener('click',()=>{viewMode=btn.dataset.view;refreshControls();if(meshes)plotMeshes(meshes).catch(console.warn);}));
     byId('download-shade').addEventListener('click',()=>{if(!reports?.shade?.ok)return;fileDownload(stlBinary(meshes.shade),`openlamp-pantalla-${state.id}.stl`,'model/stl');});
-    byId('download-base').addEventListener('click',()=>{if(!reports?.base?.ok)return;
-      const name=selectedBase==='wibble'?'abstractia-wibble-original-stand.stl':`openlamp-base-${state.id}.stl`;
+    byId('download-base').addEventListener('click',()=>{if(!reports?.baseAccepted)return;
+      const name=currentBasePreset().filename;
       fileDownload(stlBinary(meshes.base),name,'model/stl');
     });
     byId('save-json').addEventListener('click',()=>fileDownload(JSON.stringify({app:'openlamp-studio',version:3,params:state,baseId:selectedBase},null,2),`openlamp-${state.id}.json`,'application/json'));
