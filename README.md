@@ -1,3 +1,37 @@
+# OpenLamp Studio v0.8 — Taller Top paramétrico fiel al OBJ
+
+El único preset visible se construye a partir de los **342.396 vértices / 684.792 triángulos de `tallertop.obj`**, sin reconstruir las estrías. El modo por defecto devuelve el **mismo objeto de malla sin ninguna transformación**. Con parámetros diferentes, se modifica una copia de los vértices y se conservan todos los índices de triángulos originales.
+
+## Controles del editor
+- **Altura:** 195,14–265,14 mm.
+- **Diámetro:** 131,20–175,20 mm. No puede reducirse por debajo del diámetro original mientras la falda/encastre inferior permanezcan exactamente iguales.
+- **Cintura:** -8 a +8 mm, variación radial controlada alrededor de la zona media.
+- **Curvatura:** -8 a +8 mm, deformación radial de la silueta.
+- **Terminación superior:** Original abierta, tapa plana independiente, tapa curva independiente.
+- **Restablecer:** recupera el mismo buffer de geometría original, no una reconstrucción aproximada.
+- **Exportar STL:** pantalla y base independientes; si se selecciona tapa, aparece un tercer STL. El JSON de proyectos pasa a v5 y puede cargar versiones anteriores.
+
+El programa inmoviliza los **9.085 vértices** ubicados en los primeros 20 mm de la zona inferior. La deformación vertical es monótona, el desplazamiento radial conserva la relación de los radios en una misma altura y cada actualización parte de la fuente original, evitando acumulación de errores.
+
+## Pruebas de integración y límites
+```sh
+node --check app.js
+node tests/verify.cjs
+node tests/taller_top.cjs
+node tests/original_top.cjs
+node tests/parametric_original.cjs
+node tests/stand.cjs
+node tests/taller_base.cjs
+node tests/assembly.cjs
+node tests/export.cjs
+```
+
+Las pruebas verifican origen exacto, conservación de las caras y del montaje, deformaciones dentro de los rangos previstos, geometría no degenerada, volumen positivo y tapas STL independientes. GitHub Actions bloquea Pages si fallan.
+
+**Advertencias:** las tapas y el montaje no se han probado físicamente; la comprobación de geometría no garantiza tolerancias FDM, resistencia térmica, estabilidad ni seguridad eléctrica. El visor de la malla de 684.792 triángulos puede ser lento en algunos navegadores/equipos; la validación de fluidez y del encastre físico permanece pendiente.
+
+---
+
 # OpenLamp Studio — Taller Stand reparado sin alterar el diseño
 
 La base `newstandfortaller.obj` ya es **watertight/manifold** tras unificar únicamente vértices con coordenadas Float32 idénticas. Se mantienen los **19.196 triángulos** del OBJ y todas las coordenadas de cada esquina de cada triángulo, sin desplazamiento ni simplificación. Se reducen los vértices redundantes de 19.210 a 9.600; la validación exige orientación consistente, ausencia de caras degeneradas, bordes cerrados y volumen positivo. El STL del stand se exporta desde la malla corregida y no lleva ninguna marca «experimental: no manifold».
