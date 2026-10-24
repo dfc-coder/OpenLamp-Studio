@@ -31,6 +31,16 @@ for(const [height,diameter,waist,curvature] of [
  assert.equal(o.stlBinary(result).byteLength,84+50*684792);
  console.log('PASS deformation',height,diameter,waist,curvature,'unchanged mounting vertices',origMount.length);
 }
+// Surface presets must preserve the source topology and protected mount.
+for(const intensity of [0.91,1.05]){
+ const candidate=o.deformOriginalShade(original,{...originalPreset,surfaceIntensity:intensity});
+ assert.strictEqual(candidate.indices,original.indices);
+ for(const i of origMount)for(let j=0;j<3;j++)
+   assert.strictEqual(candidate.positions[i+j],original.positions[i+j]);
+ const report=o.validateOriginalDeformation(original,candidate);
+ assert(report.ok,'Surface intensity '+intensity+' invalid: '+JSON.stringify(report));
+ console.log('PASS surface intensity',intensity,'with immutable mounting collar');
+}
 for(const type of ['flat','curved']){
  const cap=o.buildTopCap(original,type);
  assert(cap&&cap.triangleCount>300);
