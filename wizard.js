@@ -7,7 +7,7 @@
     {id:'shade',number:'01',title:'Shade',subtitle:'Silueta y proporciones'},
     {id:'bulb',number:'02',title:'Bulb',subtitle:'Kit e interfaces mecánicas'},
     {id:'base',number:'03',title:'Base',subtitle:'Stand y encastre'},
-    {id:'surface',number:'04',title:'Surface',subtitle:'Nervaduras Taller'},
+    {id:'surface',number:'04',title:'Surface',subtitle:'Relieve y acabado'},
     {id:'make',number:'05',title:'Make',subtitle:'Revisión y exportación'},
   ];
   const $=id=>document.getElementById(id);
@@ -116,11 +116,11 @@
   }
   function setupSurface(pane){
     pane.appendChild(el('h2','ol-title','04 · Surface'));
-    pane.appendChild(el('p','ol-subtitle','Tratamiento de las nervaduras del OBJ original. Sin patrones arbitrarios ni cambios al encastre.'));
+    pane.appendChild(el('p','ol-subtitle','Aplicá un acabado controlado a la forma básica, sin alterar el encastre ni sus dimensiones funcionales.'));
     const label=el('label','ol-field');
     label.append(el('span','','Acabado de la superficie'));
     const select=el('select','ol-input');select.id='ol-surface-recipe';
-    for(const [value,text] of [['original','Original · relieve intacto'],['soft','Soft · relieve discreto'],['defined','Defined · relieve acentuado']]){
+    for(const [value,text] of [['original','Smooth · superficie lisa'],['soft','Soft Ribs · estrías suaves'],['defined','Defined Ribs · estrías marcadas']]){
       const opt=el('option','',text);opt.value=value;select.appendChild(opt);
     }
     label.appendChild(select);pane.append(label);
@@ -130,8 +130,8 @@
     const input=el('input','');input.type='range';input.id='ol-surface-intensity';
     input.min='0.88';input.max='1.06';input.step='0.01';input.value='1';
     rangeLabel.append(cap,output,input);pane.append(rangeLabel);
-    stepNotice(pane,'Diseño original protegido',
-      'El factor 1,00 reproduce exactamente la superficie de Taller. La deformación se atenúa hasta desaparecer en la zona inferior de montaje.');
+    stepNotice(pane,'Montaje protegido',
+      'En las formas básicas, Smooth mantiene las paredes lisas y las opciones de estrías se desvanecen antes de alcanzar la zona de montaje.');
     select.addEventListener('change',()=>{
       const values={original:1,soft:0.91,defined:1.05};
       input.value=String(values[select.value]);
@@ -188,7 +188,7 @@
     if(checklist){
       checklist.replaceChildren();
       const rows=[
-        ['Pantalla','Modelo Taller original / deformable','ok'],
+        ['Pantalla',project.params.id?.startsWith('basic_')?('Forma '+project.params.id.slice(6)):'Proyecto Taller heredado','ok'],
         ['Geometría',report.geometryStatus==='valid'?'STL individuales habilitados':'Geometría pendiente',''+(report.geometryStatus==='valid'?'ok':'warn')],
         ['Base',compat.interfaces[project.baseId]?.name||'Sin base',report.knownMount?'ok':'warn'],
         ['Bulb',report.hardware.type==='none'?'Kit no seleccionado':(report.hardware.sku||'Sin referencia'),'warn'],
