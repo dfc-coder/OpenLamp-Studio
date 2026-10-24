@@ -26,6 +26,7 @@ Each family has specific permitted height/nominal-diameter ranges and limited ra
 - `tests/shade-design.cjs`: family definitions, bounds, no overshoot, G1 tangent continuity, envelope extraction.
 - `tests/shade-mesh.cjs`: validates the original OBJ and all three family variations, unchanged mounting vertex coordinates and unchanged original faces.
 - Historical `tests/parametric_original.cjs` and `tests/assembly.cjs` remain in CI.
+- `tests/browser_shade.py` and `.github/workflows/shade-browser.yml`: Chromium workflow smoke and SVG family-sheet screenshots for review.
 
 The GitHub Pages workflow requires these tests before publishing. Existing five-step navigation and STL output are retained.
 
@@ -34,7 +35,7 @@ The GitHub Pages workflow requires these tests before publishing. Existing five-
 1. **G2 continuity / curvature-comb design review:** G1 continuity is exercised; G2 is not guaranteed globally, nor is every smooth transition required to be G2.
 2. **Shell wall thickness** under all combinations: not yet measured by robust surface-to-surface proximity; triangle-index preservation and positive volume alone are insufficient.
 3. **Global self-intersection certification** for all allowable designs: not yet implemented using a mesh boolean/geometry library.
-4. **Pixel-level / interactive browser E2E** in Firefox and Chromium: the currently automated workflows check JS syntax and geometry, but not all pointer interactions in real browsers.
+4. **Browser E2E:** Chromium smoke checks navigation, family selection, Surface isolation, reset and mounting interface. It runs with WebGL disabled to isolate UI; full WebGL rendering, pointer drag gestures, pixel regression and Firefox remain unverified. Four SVG profile captures are saved as CI artifacts.
 5. **Curatorial review** and printed-test acceptance: the three initial family curves are prototype design seeds; they are not user-approved final consumer styles.
 6. **Mechanical carrier, thermal and electrical safety**: handled in Bulb; not claims of Shade acceptance.
 
