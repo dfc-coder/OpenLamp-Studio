@@ -10,14 +10,19 @@
     soft: {label:'ABSTRACT SOFT',ribDepth:[0,0.5],ribCount:[0,14],twist:[-6,6]},
     petal: {label:'ABSTRACT CLASSIC',ribDepth:[0,1.2],ribCount:[10,26],twist:[-8,8]},
     calm: {label:'ABSTRACT MINIMAL',ribDepth:[0,0.9],ribCount:[14,34],twist:[-6,6]},
+    atelier: {label:'ATELIER · PANTALLAS DE MESA',ribDepth:[0,0.6],ribCount:[0,32],twist:[-5,5]},
   };
   const PRESETS = [
-    {id:'globo',name:'Globo',family:'soft',glyph:'◯',height:158,diameter:168,thickness:1.6,ribDepth:0.15,ribCount:10,twist:0},
-    {id:'organica',name:'Óvalo',family:'soft',glyph:'⬭',height:178,diameter:154,thickness:1.6,ribDepth:0.12,ribCount:12,twist:0},
-    {id:'hongo',name:'Hongo',family:'petal',glyph:'◠',height:132,diameter:188,thickness:1.8,ribDepth:0.45,ribCount:18,twist:0},
-    {id:'petalo',name:'Campana',family:'petal',glyph:'⌒',height:152,diameter:176,thickness:1.8,ribDepth:0.35,ribCount:20,twist:0},
-    {id:'cilindrica',name:'Tambor',family:'calm',glyph:'▥',height:176,diameter:146,thickness:1.6,ribDepth:0.55,ribCount:26,twist:0},
-    {id:'conica',name:'Imperio',family:'calm',glyph:'▽',height:150,diameter:178,thickness:1.6,ribDepth:0.35,ribCount:22,twist:0},
+    {id:'halo',name:'Halo',family:'atelier',glyph:'◒',height:120,diameter:238,thickness:1.6,ribDepth:0,ribCount:0,twist:0},
+    {id:'domo',name:'Domo',family:'atelier',glyph:'◠',height:128,diameter:220,thickness:1.6,ribDepth:0,ribCount:0,twist:0},
+    {id:'campana_atelier',name:'Campana',family:'atelier',glyph:'⌒',height:134,diameter:219,thickness:1.6,ribDepth:0,ribCount:0,twist:0},
+    {id:'tambor_atelier',name:'Tambor',family:'atelier',glyph:'▥',height:144,diameter:207,thickness:1.6,ribDepth:0.35,ribCount:28,twist:0},
+    {id:'globo',archived:true,name:'Globo',family:'soft',glyph:'◯',height:158,diameter:168,thickness:1.6,ribDepth:0.15,ribCount:10,twist:0},
+    {id:'organica',archived:true,name:'Óvalo',family:'soft',glyph:'⬭',height:178,diameter:154,thickness:1.6,ribDepth:0.12,ribCount:12,twist:0},
+    {id:'hongo',archived:true,name:'Hongo',family:'petal',glyph:'◠',height:132,diameter:188,thickness:1.8,ribDepth:0.45,ribCount:18,twist:0},
+    {id:'petalo',archived:true,name:'Campana',family:'petal',glyph:'⌒',height:152,diameter:176,thickness:1.8,ribDepth:0.35,ribCount:20,twist:0},
+    {id:'cilindrica',archived:true,name:'Tambor',family:'calm',glyph:'▥',height:176,diameter:146,thickness:1.6,ribDepth:0.55,ribCount:26,twist:0},
+    {id:'conica',archived:true,name:'Imperio',family:'calm',glyph:'▽',height:150,diameter:178,thickness:1.6,ribDepth:0.35,ribCount:22,twist:0},
   ];
   const FIELDS = [
     ['height','Altura pantalla','mm',80,280,1], ['diameter','Diámetro nominal','mm',110,280,1],
@@ -28,6 +33,28 @@
   // Classic lamp silhouettes defined by piecewise cubic Bézier curves.
   // Each segment is [p0, p1, p2, p3] in normalized [height, radiusFactor].
   const SHAPE_PROFILES = {
+    // Full-height cubic Bézier silhouettes, built for desktop lamps.
+    // Mounting diameter is still fixed by the existing collar geometry.
+    halo: {fullProfile:true,crownStart:0.78,curves:[
+      [[0,0.36],[0.12,0.42],[0.12,0.86],[0.34,1.00]],
+      [[0.34,1.00],[0.50,1.09],[0.66,1.07],[0.78,0.94]],
+      [[0.78,0.94],[0.91,0.83],[1.00,0.26],[1.00,0]],
+    ]},
+    domo: {fullProfile:true,crownStart:0.87,curves:[
+      [[0,0.38],[0.09,0.59],[0.19,0.94],[0.42,1.00]],
+      [[0.42,1.00],[0.63,1.00],[0.77,0.88],[0.87,0.68]],
+      [[0.87,0.68],[0.95,0.44],[1.00,0.14],[1.00,0]],
+    ]},
+    campana_atelier: {fullProfile:true,crownStart:0.84,curves:[
+      [[0,0.38],[0.08,0.54],[0.16,0.99],[0.30,1.00]],
+      [[0.30,1.00],[0.46,1.00],[0.66,0.72],[0.84,0.41]],
+      [[0.84,0.41],[0.92,0.29],[1.00,0.13],[1.00,0]],
+    ]},
+    tambor_atelier: {fullProfile:true,crownStart:0.78,curves:[
+      [[0,0.41],[0.05,0.80],[0.14,0.97],[0.22,1.00]],
+      [[0.22,1.00],[0.45,1.01],[0.68,1.01],[0.78,0.98]],
+      [[0.78,0.98],[0.91,0.93],[1.00,0.17],[1.00,0]],
+    ]},
     globo: {crownStart:0.74,curves:[
       [[0.16,0.70],[0.18,0.84],[0.34,1.01],[0.52,1.00]],
       [[0.52,1.00],[0.61,0.99],[0.68,0.97],[0.74,0.95]],
@@ -64,7 +91,7 @@
   ];
   const WIBBLE_ASSET='assets/stands/wibble-stand.olmesh.gz';
   let state={...PRESETS[0],clearance:defaultClearance};
-  let selectedBase='flat',standMesh=null,standPromise=null,renderRequest=0;
+  let selectedBase='wibble',standMesh=null,standPromise=null,renderRequest=0;
   let meshes=null, reports=null, plotPrepared=false, pendingRender=0, viewMode='ensamblada';
   const byId=id=>document.getElementById(id);
   const clamp=(x,a,b)=>Math.max(a,Math.min(x,b));
@@ -113,22 +140,23 @@
     if(t<=samples[0][0])return samples[0][1];
     const last=samples[samples.length-1];
     if(t>=last[0])return last[1];
-    for(let i=0;i<samples.length-1;i++){
-      const [x0,y0]=samples[i], [x1,y1]=samples[i+1];
-      if(t<=x1){
-        const u=(t-x0)/(x1-x0||1);
-        return y0+(y1-y0)*u;
-      }
+    let lo=0,hi=samples.length-1;
+    while(hi-lo>1){
+      const mid=(lo+hi)>>1;
+      if(samples[mid][0]<t)lo=mid;else hi=mid;
     }
-    return last[1];
+    const [x0,y0]=samples[lo],[x1,y1]=samples[hi];
+    return y0+(y1-y0)*(t-x0)/(x1-x0||1);
   }
   function profile(t,id){
     const spec=SHAPE_PROFILES[id];
     if(!spec)throw new Error('Perfil inválido');
-    return interpolateSamples(spec.samples,Math.min(t,spec.crownStart));
+    return interpolateSamples(spec.samples,spec.fullProfile?t:Math.min(t,spec.crownStart));
   }
   function crownFactor(t,p){
-    const start=SHAPE_PROFILES[p.id].crownStart;
+    const spec=SHAPE_PROFILES[p.id];
+    if(spec.fullProfile)return 1;
+    const start=spec.crownStart;
     if(t<=start)return 1;
     const u=clamp((t-start)/(1-start),0,1);
     return Math.sqrt(Math.max(0,1-u*u));
@@ -148,7 +176,7 @@
     // Mechanical socket is untouched: Ø80 mm inner aperture on the underside.
     const collar=OPENING_RADIUS+p.thickness;
     const body=(p.diameter/2)*profile(t,p.id);
-    const blend=smoothstep(t/0.20);
+    const blend=smoothstep(t/(SHAPE_PROFILES[p.id].fullProfile?0.10:0.20));
     const radiused=collar+(body-collar)*blend;
     return Math.max(0,radiused*crownFactor(t,p)+surfaceDetail(t,theta,p));
   }
@@ -421,7 +449,7 @@
       refreshControls();timer();
     }));
     byId('presets').innerHTML=Object.entries(FAMILY).map(([key,f])=>
-      `<div class="family-group"><div class="family-title">${f.label}</div><div class="family-grid">${PRESETS.filter(p=>p.family===key).map(p=>
+      `<div class="family-group" ${PRESETS.some(p=>p.family===key&&!p.archived)?'':'hidden'}><div class="family-title">${f.label}</div><div class="family-grid">${PRESETS.filter(p=>p.family===key&&!p.archived).map(p=>
         `<button class="preset" data-id="${p.id}" aria-pressed="false"><span class="glyph" aria-hidden="true">${p.glyph}</span><span>${p.name}</span></button>`).join('')}</div></div>`).join('');
     document.querySelectorAll('.preset').forEach(btn=>btn.addEventListener('click',()=>{
       state=suggestedParams(btn.dataset.id);refreshControls();timer();
