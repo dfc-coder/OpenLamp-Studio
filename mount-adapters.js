@@ -140,12 +140,14 @@
      vertexCount:points.length/3,triangleCount:faces.length/3};
    return {mesh,profile:params,status:'prototype',contactSites:params.tips.length};
  }
+ const bridgeCache=new WeakMap();
  function mountFor(baseId,standMesh){
    const spec=profileFor(baseId);
    if(baseId==='flat')return {baseId,status:'cad-only',adapter:null,
      shadeBottom:35.59607-spec.insertion,
      interface:{...spec}};
-   const bridge=buildWibbleBridge(standMesh);
+   let bridge=bridgeCache.get(standMesh);
+   if(!bridge){bridge=buildWibbleBridge(standMesh);bridgeCache.set(standMesh,bridge);}
    return {baseId,status:'prototype',adapter:bridge.mesh,
      shadeBottom:bridge.profile.shadeBottom,interface:{...spec},
      bridgeProfile:bridge.profile,contactSites:bridge.contactSites};
