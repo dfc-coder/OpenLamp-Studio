@@ -21,6 +21,8 @@ jobs:
           node --check wizard.js
           node --check shade-design.js
           node --check shade-editor.js
+          node --check basic-shade.js
+          node --check basic-options.js
       - name: Validate geometry and binary STL
         run: |
           node tests/verify.cjs
@@ -29,6 +31,7 @@ jobs:
           node tests/parametric_original.cjs
           node tests/shade-design.cjs
           node tests/shade-mesh.cjs
+          node tests/basic-shade.cjs
           node tests/compatibility.cjs
       - name: Validate optimized imported stand
         run: |
