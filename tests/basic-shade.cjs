@@ -14,6 +14,11 @@ for(const p of B.presets){
   const shade=B.build({...p,surfaceIntensity:1});
   const report=a.validate(shade);
   assert(report.ok,p.id+': '+JSON.stringify(report));
+  let maxRadius=0;
+  for(let i=0;i<shade.positions.length;i+=3)
+    maxRadius=Math.max(maxRadius,Math.hypot(shade.positions[i],shade.positions[i+1]));
+  assert(Math.abs(2*maxRadius-p.diameter)<1.2,
+    p.id+' displayed/actual width mismatch '+(2*maxRadius).toFixed(2)+' vs '+p.diameter);
   assert.equal(shade.triangleCount,4*B.SEGMENTS*B.LEVELS);
   // All bottom INNER rim coordinates are unchanged in every silhouette.
   for(let j=0;j<B.SEGMENTS;j++){
