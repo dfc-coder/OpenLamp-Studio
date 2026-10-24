@@ -1,0 +1,78 @@
+name: Publicar demo en GitHub Pages
+
+on:
+  push:
+    branches: [develop]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: github-pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Validar y preparar sitio estático
+    runs-on: ubuntu-latest
+    steps:
+      - name: Obtener develop
+        uses: actions/checkout@v4
+
+      - name: Preparar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Verificar sintaxis del generador
+        run: node --check app.js
+
+      - name: Verificar mallas, STL y compatibilidad
+        run: |
+          node tests/verify.cjs
+          node tests/stand.cjs
+          node tests/export.cjs
+
+      - name: Empaquetar exclusivamente la aplicación
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p _site/assets/stands
+          cp index.html app.js styles.css _site/
+          cp assets/stands/wibble-stand.olmesh.gz _site/assets/stands/
+          cp assets/stands/wibble-reference.webp _site/assets/stands/
+          touch _site/.nojekyll
+
+      - name: Verificar archivos de publicación
+        run: |
+          test -s _site/index.html
+          test -s _site/app.js
+          test -s _site/styles.css
+          test -s _site/assets/stands/wibble-stand.olmesh.gz
+          test -s _site/assets/stands/wibble-reference.webp
+          ! grep -q 'src="/app.js"' _site/index.html
+          ! grep -q 'href="/styles.css"' _site/index.html
+          echo "Sitio estático listo para /OpenLamp-Studio/"
+
+      - name: Configurar Pages
+        uses: actions/configure-pages@v5
+
+      - name: Subir artefacto Pages
+        uses: actions/upload-pages-artifact@v4
+        with:
+          path: _site
+
+  deploy:
+    name: Desplegar demo
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Publicar en Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
