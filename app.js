@@ -108,7 +108,7 @@
   const GROUND_GROOVE_DEPTH=3.2, GROUND_GROOVE_WIDTH=5.5;
   const defaultClearance=0.4;
   const BASE_PRESETS = [
-    {id:'flat',name:'Taller Stand',author:'Usuario',type:'mesh',experimental:true,height:35.59607,diameter:131.19819,asset:'assets/stands/taller-stand.olmesh.gz',preview:'assets/stands/taller-stand-reference.png',filename:'openlamp-taller-stand-experimental.stl'},
+    {id:'flat',name:'Taller Stand',author:'Usuario',type:'mesh',experimental:false,height:35.59607,diameter:131.19819,asset:'assets/stands/taller-stand.olmesh.gz',preview:'assets/stands/taller-stand-reference.png',filename:'openlamp-taller-stand.stl'},
     {id:'wibble',name:'Wibble Stand',author:'Abstractia Design',type:'mesh',height:199.37149,diameter:162.87946,asset:'assets/stands/wibble-stand.olmesh.gz',preview:'assets/stands/wibble-reference.webp',filename:'abstractia-wibble-original-stand.stl'},
   ];
   let state={...PRESETS[0],clearance:defaultClearance};
@@ -350,6 +350,30 @@
     for(const index of indices)if(index>=nVerts)throw new Error('Índice fuera de rango');
     return {positions,indices,triangleCount:nFaces,vertexCount:nVerts};
   }
+  // OBJ files often contain separate vertices with IDENTICAL positions to support
+  // hard-edge normals. Weld by exact Float32 coordinates (no rounding, smoothing,
+  // movement, face deletion, triangulation, or change to the visible surface).
+  // This makes the source's shared edges topologically connected for STL.
+  function weldCoincidentVertices(mesh){
+    const source=mesh.positions,faces=mesh.indices;
+    const lookup=new Map(),unique=[],remap=new Uint32Array(mesh.vertexCount);
+    for(let v=0;v<mesh.vertexCount;v++){
+      const at=3*v,x=source[at],y=source[at+1],z=source[at+2];
+      if(!Number.isFinite(x)||!Number.isFinite(y)||!Number.isFinite(z))throw new Error('Coordenadas no válidas');
+      const key=x+','+y+','+z;
+      let index=lookup.get(key);
+      if(index===undefined){
+        index=unique.length/3;
+        unique.push(x,y,z);
+        lookup.set(key,index);
+      }
+      remap[v]=index;
+    }
+    const indices=new Uint32Array(faces.length);
+    for(let i=0;i<faces.length;i++)indices[i]=remap[faces[i]];
+    return {positions:Float32Array.from(unique),indices,
+      triangleCount:mesh.triangleCount,vertexCount:unique.length/3};
+  }
   // Source OBJ geometry only: original face indices and vertex order, no reconstruction.
   const ORIGINAL_SHADE_PARTS=19;
   const ORIGINAL_SHADE_SHA256='3c49c7f36ac77d74e74e4c624250540fa2e7f9305f908fd6eacbfd64b1421e7a';
@@ -393,10 +417,10 @@
         const response=await fetch(preset.asset);
         if(!response.ok||!response.body)throw new Error('No se pudo cargar '+preset.name+' (HTTP '+response.status+')');
         const raw=await new Response(response.body.pipeThrough(new DecompressionStream('gzip'))).arrayBuffer();
-        const mesh=parseStandMesh(raw),report=validate(mesh);
-        if(!(report.ok||(preset.experimental&&report.finite&&report.degenerate===0&&report.volume>0))){
-          throw new Error('Malla inválida: '+preset.name);
-        }
+        const source=parseStandMesh(raw);
+        const mesh=id==='flat'?weldCoincidentVertices(source):source;
+        const report=validate(mesh);
+        if(!report.ok)throw new Error('Malla inválida: '+preset.name+'; '+JSON.stringify(report));
         standMeshes.set(id,mesh);
         return mesh;
       })().catch(e=>{standPromises.delete(id);throw e;});
@@ -569,8 +593,8 @@
     });
     const bp=currentBasePreset();
     byId('mount-warning').hidden=false;
-    byId('mount-warning').textContent=bp.experimental
-      ? 'Taller Stand: OBJ importado. La malla no es manifold; STL experimental sujeto a reparación antes de imprimir.'
+    byId('mount-warning').textContent=bp.id==='flat'
+      ? 'Taller Stand: malla cerrada y reparada al unir vértices idénticos, sin modificar las superficies. El encastre físico y la seguridad térmica/eléctrica todavía requieren pruebas.'
       : 'Wibble Stand: montaje con la pantalla no verificado físicamente.';
     byId('download-base').textContent='STL '+bp.name+' ↗';
     byId('current-name').textContent=preset.name;
@@ -589,16 +613,16 @@
       const bp=currentBasePreset(),base=await loadStand(bp.id);
       if(requestId!==renderRequest)return;
       const shadeReport=exact?{ok:true,source:'SHA-256/CI original asset'}:validate(shade),baseReport=validate(base);
-      const baseAccepted=baseReport.ok||(bp.experimental&&baseReport.finite&&baseReport.degenerate===0&&baseReport.volume>0);
+      const baseAccepted=baseReport.ok;
       meshes={shade,base};reports={shade:shadeReport,base:baseReport,baseAccepted};
       byId('s-height').textContent=`${Math.round(exact?Math.max(baseHeight(),147.2517395+shadeElevation()):state.height+shadeElevation())} mm`;
       let maxR=0;for(let i=0;i<shade.positions.length;i+=3)maxR=Math.max(maxR,Math.hypot(shade.positions[i],shade.positions[i+1]));
       byId('s-diameter').textContent=`${Math.ceil(2*maxR)} mm`;
       byId('s-tris').textContent=(shade.triangleCount+base.triangleCount).toLocaleString('es-AR');
-      byId('s-valid').textContent=shadeReport.ok&&baseAccepted?(bp.experimental?'Base experimental':'Dos sólidos ✓'):'Revisar';
+      byId('s-valid').textContent=shadeReport.ok&&baseAccepted?'Dos sólidos ✓':'Revisar';
       if(!shadeReport.ok||!baseAccepted)throw new Error('La geometría no superó la validación');
-      byId('status').textContent=bp.experimental
-        ? 'Pantalla validada · Taller Stand experimental (reparación de malla pendiente)'
+      byId('status').textContent=bp.id==='flat'
+        ? 'Pantalla original + base geométricamente verificadas · encastre físico pendiente'
         : 'Stand Wibble y pantalla listos · Montaje NO verificado';
       for(const id of ['download-shade','download-base'])byId(id).disabled=false;
       try{await plotMeshes(meshes);}catch(err){byId('status').textContent='STL preparados · No se pudo cargar el visor';console.warn(err);}
@@ -606,7 +630,7 @@
   }
   function init(){
     byId('base-presets').innerHTML=BASE_PRESETS.map(p=>
-      `<button type="button" class="base-preset" data-base="${p.id}" aria-pressed="false"><strong>${p.name}</strong><span>${p.id==='wibble'?'Abstractia Design · Malla original':'Modelo OBJ · experimental'}</span></button>`).join('');
+      `<button type="button" class="base-preset" data-base="${p.id}" aria-pressed="false"><strong>${p.name}</strong><span>${p.id==='wibble'?'Abstractia Design · Malla original':'Modelo OBJ · geometría cerrada'}</span></button>`).join('');
     document.querySelectorAll('.base-preset').forEach(btn=>btn.addEventListener('click',()=>{
       selectedBase=btn.dataset.base;
       refreshControls();timer();
@@ -642,6 +666,6 @@
     }catch(err){alert('No se pudo abrir el proyecto: '+err.message);}finally{e.target.value='';}});
     refreshControls();render();
   }
-  window.OpenLampTest={loadOriginalShade,ORIGINAL_SHADE_PARTS,ORIGINAL_SHADE_SHA256,buildTallerShade,tallerOuterRadius,shadeElevation,TALLER_MOUNT_INNER_RADIUS,TALLER_MOUNT_ZONE_HEIGHT,TALLER_TOP_PROFILE,TALLER_TOP_ORIGINAL_HEIGHT,TALLER_TOP_ORIGINAL_DIAMETER,buildShade,buildBase,parseStandMesh,validate,stlBinary,PRESETS,BASE_PRESETS,FAMILY,SHAPE_PROFILES,profile,outerRadius,surfaceDetail,fieldLimits,sanitize,OPENING_RADIUS,BASE_HEIGHT,SEAT_HEIGHT,defaultClearance,getState:()=>({...state}),getReport:()=>reports};
+  window.OpenLampTest={weldCoincidentVertices,loadOriginalShade,ORIGINAL_SHADE_PARTS,ORIGINAL_SHADE_SHA256,buildTallerShade,tallerOuterRadius,shadeElevation,TALLER_MOUNT_INNER_RADIUS,TALLER_MOUNT_ZONE_HEIGHT,TALLER_TOP_PROFILE,TALLER_TOP_ORIGINAL_HEIGHT,TALLER_TOP_ORIGINAL_DIAMETER,buildShade,buildBase,parseStandMesh,validate,stlBinary,PRESETS,BASE_PRESETS,FAMILY,SHAPE_PROFILES,profile,outerRadius,surfaceDetail,fieldLimits,sanitize,OPENING_RADIUS,BASE_HEIGHT,SEAT_HEIGHT,defaultClearance,getState:()=>({...state}),getReport:()=>reports};
   window.addEventListener('load',init);
 })();
