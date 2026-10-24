@@ -58,7 +58,13 @@
   const BASE_HEIGHT=12, SEAT_HEIGHT=9, SEAT_WALL=4, HOLE_RADIUS=3.5;
   const GROUND_GROOVE_DEPTH=3.2, GROUND_GROOVE_WIDTH=5.5;
   const defaultClearance=0.4;
+  const BASE_PRESETS = [
+    {id:'flat',name:'Plana',author:'OpenLamp Studio',type:'parametric'},
+    {id:'wibble',name:'Wibble Stand',author:'Abstractia Design',type:'mesh',height:199.37149,diameter:162.87946},
+  ];
+  const WIBBLE_ASSET='assets/stands/wibble-stand.olmesh.gz';
   let state={...PRESETS[0],clearance:defaultClearance};
+  let selectedBase='flat',standMesh=null,standPromise=null,renderRequest=0;
   let meshes=null, reports=null, plotPrepared=false, pendingRender=0, viewMode='ensamblada';
   const byId=id=>document.getElementById(id);
   const clamp=(x,a,b)=>Math.max(a,Math.min(x,b));
@@ -197,6 +203,39 @@
     }
     return {positions:verts,indices:Uint32Array.from(indices),triangleCount:indices.length/3,vertexCount:verts.length/3};
   }
+  // Imported mesh retains every source vertex and triangle; z was translated
+  // so the stand rests on z=0. The source file is supplied under separate permission.
+  function parseStandMesh(buffer){
+    if(buffer.byteLength<12)throw new Error('Archivo de stand incompleto');
+    const view=new DataView(buffer);
+    if(view.getUint32(0,true)!==0x314d4c4f)throw new Error('Formato del stand desconocido'); // 'OLM1'
+    const nVerts=view.getUint32(4,true),nFaces=view.getUint32(8,true);
+    if(nVerts===0||nVerts>200000||nFaces===0||nFaces>400000)throw new Error('Tamaño de malla inválido');
+    if(buffer.byteLength!==12+12*nVerts+12*nFaces)throw new Error('Longitud de malla incorrecta');
+    const positions=new Float32Array(buffer.slice(12,12+12*nVerts));
+    const indices=new Uint32Array(buffer.slice(12+12*nVerts));
+    for(const index of indices)if(index>=nVerts)throw new Error('Índice fuera de rango');
+    return {positions,indices,triangleCount:nFaces,vertexCount:nVerts};
+  }
+  async function loadStand(){
+    if(standMesh)return standMesh;
+    if(!standPromise){
+      standPromise=(async()=>{
+        if(typeof DecompressionStream!=='function')throw new Error('Este navegador no admite descompresión de mallas gzip');
+        const response=await fetch(WIBBLE_ASSET);
+        if(!response.ok||!response.body)throw new Error('No se pudo cargar el stand Wibble (HTTP '+response.status+')');
+        const buffer=await new Response(response.body.pipeThrough(new DecompressionStream('gzip'))).arrayBuffer();
+        const mesh=parseStandMesh(buffer);
+        const quality=validate(mesh);
+        if(!quality.ok)throw new Error('El stand no pasó validación de geometría');
+        standMesh=mesh;
+        return mesh;
+      })().catch(e=>{standPromise=null;throw e;});
+    }
+    return standPromise;
+  }
+  function baseHeight(){return selectedBase==='wibble'?BASE_PRESETS[1].height:BASE_HEIGHT;}
+  function baseDiameter(){return selectedBase==='wibble'?BASE_PRESETS[1].diameter:null;}
   function channelBottom(r,theta){
     // Open underside radial cable channel: only a geometric provision, not rated strain relief.
     const x=r*Math.cos(theta),y=r*Math.sin(theta);
@@ -284,10 +323,10 @@
     // Explicit, non-interactive 2D profile preview when WebGL is unavailable.
     const help=document.querySelector('.view-help');if(help)help.textContent='Vista lateral esquemática · Interacción 3D no disponible';
     const area=byId('viewer'),w=Math.max(400,area.clientWidth||800),h=Math.max(360,area.clientHeight||580);
-    const maxR=Math.max(62,state.diameter*.51,state.diameter*.43);
-    const vertical=state.height+BASE_HEIGHT+(viewMode==='separada'?27:0);
+    const maxR=Math.max(62,state.diameter*.51,state.diameter*.43,(baseDiameter()||0)/2);
+    const vertical=state.height+baseHeight()+(viewMode==='separada'?27:0);
     const scale=Math.min((w-95)/(2*maxR),(h-85)/vertical);
-    const cx=w/2,ground=h-45,screenOffset=BASE_HEIGHT+(viewMode==='separada'?27:0);
+    const cx=w/2,ground=h-45,screenOffset=baseHeight()+(viewMode==='separada'?27:0);
     const xx=r=>(cx+r*scale).toFixed(1), yy=z=>(ground-z*scale).toFixed(1);
     let outline=`M ${xx(0)} ${yy(screenOffset+state.height)}`;
     for(let k=99;k>=0;k--){const t=k/100;outline+=` L ${xx(outerRadius(t,0,state))} ${yy(screenOffset+t*state.height)}`;}
@@ -295,7 +334,14 @@
     for(let k=1;k<=99;k++){const t=k/100;outline+=` L ${xx(-outerRadius(t,Math.PI,state))} ${yy(screenOffset+t*state.height)}`;}
     outline+=' Z';
     const br=Math.max(62,state.diameter*.43),footTop=yy(BASE_HEIGHT),footBottom=yy(0);
-    const guide=viewMode==='ensamblada'?'Pantalla apoyada sobre el asiento':'Pantalla y base separadas';
+    const isWibble=selectedBase==='wibble';
+    const guide=isWibble?'Wibble Stand · montaje de pantalla SIN VERIFICAR':viewMode==='ensamblada'?'Pantalla apoyada sobre el asiento':'Pantalla y base separadas';
+    if(isWibble){
+      area.innerHTML=`<div class="wibble-fallback"><img src="assets/stands/wibble-reference.webp" alt="Referencia del stand original Wibble de Abstractia Design, fotografiado con su propia pantalla"><p>Referencia del fabricante · No representa encastre con la pantalla OpenLamp</p></div>`;
+      byId('status').textContent='Stand original cargado · Vista 3D no disponible · Acople no verificado';
+      plotPrepared=false;
+      return Promise.resolve();
+    }
     area.innerHTML=`<svg viewBox="0 0 ${w} ${h}" role="img" aria-label="Vista esquemática 2D de lámpara con pantalla cerrada arriba y base" style="width:100%;height:100%;display:block">
       <defs><linearGradient id="ol-surface" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#a18e73"/><stop offset=".5" stop-color="#eddfc6"/><stop offset="1" stop-color="#b6a383"/></linearGradient></defs>
       <ellipse cx="${cx}" cy="${footBottom}" rx="${br*scale}" ry="${7*scale}" fill="#585d54" opacity=".14"/>
@@ -313,7 +359,7 @@
     let gl=false;try{const c=document.createElement('canvas');gl=Boolean(c.getContext('webgl')||c.getContext('webgl2'));}catch(e){gl=false;}
     if(!gl||typeof Plotly==='undefined')return fallback2D();
     const exploded=viewMode==='separada';
-    const traces=[makeTrace(all.base,'#8f9287'),makeTrace(all.shade,'#e7d6bc',BASE_HEIGHT+(exploded?27:0))];
+    const traces=[makeTrace(all.base,'#bb765f'),makeTrace(all.shade,'#e7d6bc',baseHeight()+(exploded?27:0))];
     const layout={paper_bgcolor:'rgba(0,0,0,0)',plot_bgcolor:'rgba(0,0,0,0)',margin:{t:0,b:0,l:0,r:0},showlegend:false,uirevision:'orbit',
       scene:{xaxis:{visible:false},yaxis:{visible:false},zaxis:{visible:false},aspectmode:'data',camera:{eye:{x:1.4,y:1.7,z:1.13}},bgcolor:'rgba(0,0,0,0)'},dragmode:'turntable'};
     const opts={responsive:true,displaylogo:false,displayModeBar:false,scrollZoom:true};
@@ -333,6 +379,12 @@
     }
     document.querySelectorAll('.preset').forEach(el=>{el.classList.toggle('active',el.dataset.id===state.id);el.setAttribute('aria-pressed',String(el.dataset.id===state.id));});
     const preset=presetById(state.id);
+    document.querySelectorAll('.base-preset').forEach(btn=>{
+      const active=btn.dataset.base===selectedBase;
+      btn.classList.toggle('active',active);btn.setAttribute('aria-pressed',String(active));
+    });
+    byId('mount-warning').hidden=selectedBase!=='wibble';
+    byId('download-base').textContent=selectedBase==='wibble'?'STL stand Wibble ↗':'STL base ↗';
     byId('current-name').textContent=preset.name;
     byId('current-family').textContent=FAMILY[preset.family].label;
     byId('curated-warning').hidden=!exceedsCurated(state);
@@ -340,22 +392,34 @@
   }
   async function render(){
     for(const id of ['download-shade','download-base'])byId(id).disabled=true;
+    const requestId=++renderRequest;
     byId('status').textContent='Generando pantalla y base…';
     try{
-      const shade=buildShade(state),base=buildBase(state),shadeReport=validate(shade),baseReport=validate(base);
+      const shade=buildShade(state);
+      const base=selectedBase==='wibble'?await loadStand():buildBase(state);
+      if(requestId!==renderRequest)return;
+      const shadeReport=validate(shade),baseReport=validate(base);
       meshes={shade,base};reports={shade:shadeReport,base:baseReport};
-      byId('s-height').textContent=`${state.height+BASE_HEIGHT} mm`;
+      byId('s-height').textContent=`${Math.round(state.height+baseHeight())} mm`;
       let maxR=0;for(let i=0;i<shade.positions.length;i+=3)maxR=Math.max(maxR,Math.hypot(shade.positions[i],shade.positions[i+1]));
       byId('s-diameter').textContent=`${Math.ceil(2*maxR)} mm`;
       byId('s-tris').textContent=(shade.triangleCount+base.triangleCount).toLocaleString('es-AR');
       byId('s-valid').textContent=shadeReport.ok&&baseReport.ok?'Dos sólidos ✓':'Revisar';
       if(!shadeReport.ok||!baseReport.ok)throw new Error(`Malla inválida — pantalla: ${JSON.stringify(shadeReport)}, base: ${JSON.stringify(baseReport)}`);
-      byId('status').textContent='Geometría validada · 2 STL preparados';
+      byId('status').textContent=selectedBase==='wibble'
+        ? 'STL del stand original y pantalla listos · Montaje NO verificado'
+        : 'Geometría validada · 2 STL preparados';
       for(const id of ['download-shade','download-base'])byId(id).disabled=false;
       try{await plotMeshes(meshes);}catch(err){byId('status').textContent='STL preparados · No se pudo cargar el visor';console.warn(err);}
     }catch(e){byId('status').textContent='Error: '+(e.message||e);byId('s-valid').textContent='Error';console.error(e);}
   }
   function init(){
+    byId('base-presets').innerHTML=BASE_PRESETS.map(p=>
+      `<button type="button" class="base-preset" data-base="${p.id}" aria-pressed="false"><strong>${p.name}</strong><span>${p.id==='wibble'?'Abstractia Design · Malla original':'Base circular paramétrica'}</span></button>`).join('');
+    document.querySelectorAll('.base-preset').forEach(btn=>btn.addEventListener('click',()=>{
+      selectedBase=btn.dataset.base;
+      refreshControls();timer();
+    }));
     byId('presets').innerHTML=Object.entries(FAMILY).map(([key,f])=>
       `<div class="family-group"><div class="family-title">${f.label}</div><div class="family-grid">${PRESETS.filter(p=>p.family===key).map(p=>
         `<button class="preset" data-id="${p.id}" aria-pressed="false"><span class="glyph" aria-hidden="true">${p.glyph}</span><span>${p.name}</span></button>`).join('')}</div></div>`).join('');
@@ -370,18 +434,22 @@
     byId('reset-design').addEventListener('click',()=>{state=suggestedParams(state.id);refreshControls();timer();});
     document.querySelectorAll('.view-mode').forEach(btn=>btn.addEventListener('click',()=>{viewMode=btn.dataset.view;refreshControls();if(meshes)plotMeshes(meshes).catch(console.warn);}));
     byId('download-shade').addEventListener('click',()=>{if(!reports?.shade?.ok)return;fileDownload(stlBinary(meshes.shade),`openlamp-pantalla-${state.id}.stl`,'model/stl');});
-    byId('download-base').addEventListener('click',()=>{if(!reports?.base?.ok)return;fileDownload(stlBinary(meshes.base),`openlamp-base-${state.id}.stl`,'model/stl');});
-    byId('save-json').addEventListener('click',()=>fileDownload(JSON.stringify({app:'openlamp-studio',version:3,params:state},null,2),`openlamp-${state.id}.json`,'application/json'));
+    byId('download-base').addEventListener('click',()=>{if(!reports?.base?.ok)return;
+      const name=selectedBase==='wibble'?'abstractia-wibble-original-stand.stl':`openlamp-base-${state.id}.stl`;
+      fileDownload(stlBinary(meshes.base),name,'model/stl');
+    });
+    byId('save-json').addEventListener('click',()=>fileDownload(JSON.stringify({app:'openlamp-studio',version:3,params:state,baseId:selectedBase},null,2),`openlamp-${state.id}.json`,'application/json'));
     byId('load-json').addEventListener('click',()=>byId('json-file').click());
     byId('json-file').addEventListener('change',async e=>{const file=e.target.files?.[0];if(!file)return;try{
       const data=JSON.parse(await file.text());
       if(data.app!=='openlamp-studio'||![1,2,3].includes(data.version))throw new Error('Formato incompatible');
       state=sanitize(data.params,{legacy:data.version<3});
+      selectedBase=BASE_PRESETS.some(p=>p.id===data.baseId)?data.baseId:'flat';
       if(exceedsCurated(state))byId('advanced-design').checked=true;
       refreshControls();timer();
     }catch(err){alert('No se pudo abrir el proyecto: '+err.message);}finally{e.target.value='';}});
     refreshControls();render();
   }
-  window.OpenLampTest={buildShade,buildBase,validate,stlBinary,PRESETS,FAMILY,SHAPE_PROFILES,profile,outerRadius,surfaceDetail,fieldLimits,sanitize,OPENING_RADIUS,BASE_HEIGHT,SEAT_HEIGHT,defaultClearance,getState:()=>({...state}),getReport:()=>reports};
+  window.OpenLampTest={buildShade,buildBase,parseStandMesh,validate,stlBinary,PRESETS,BASE_PRESETS,FAMILY,SHAPE_PROFILES,profile,outerRadius,surfaceDetail,fieldLimits,sanitize,OPENING_RADIUS,BASE_HEIGHT,SEAT_HEIGHT,defaultClearance,getState:()=>({...state}),getReport:()=>reports};
   window.addEventListener('load',init);
 })();
