@@ -30,12 +30,18 @@ def main():
                 page.wait_for_selector(".ol-step-nav.active", timeout=30000)
                 assert page.locator(".ol-step-nav").count() == 5
                 assert page.locator("#presets .preset:not(:disabled)").count() == 7
-                assert page.locator("#presets .preset:disabled").count() == 2
+                assert page.locator("#presets .preset:disabled").count() == 0
+                assert page.locator("#presets .preset .glyph svg path").count() == 7
+                assert "Torus" not in page.locator("#presets").inner_text()
+                assert "Free Curve" not in page.locator("#presets").inner_text()
+                patterns = page.locator("#presets .preset .glyph svg path")
+                assert len(set(patterns.evaluate_all("(nodes) => nodes.map(n => n.getAttribute('d'))"))) == 7
                 page.wait_for_function("() => window.OpenLampBridge?.getStatus().shadeValid === true", timeout=90000)
                 baseline = page.evaluate("() => window.OpenLampBridge.getShadeInterface().mount.innerRadiusMm")
                 assert abs(baseline - 35.044) < 0.002
                 folder = ROOT / "artifacts" / "shade"
                 folder.mkdir(parents=True, exist_ok=True)
+                page.locator("#presets").screenshot(path=str(folder / "shape-gallery.png"))
                 for shape in ["cylinder", "cone", "dome", "bell", "sphere", "pear", "disc"]:
                     page.locator(f"#presets .preset[data-id='basic_{shape}']").click()
                     page.wait_for_function("(name) => window.OpenLampBridge.getProject().params.id === 'basic_'+name", arg=shape)
