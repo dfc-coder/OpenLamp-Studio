@@ -8,38 +8,39 @@
   <meta name="description" content="Generador de lámparas de escritorio con flujo Shade, Bulb, Base, Surface y Make. Diseños 3D paramétricos en el navegador." />
   <link rel="stylesheet" href="styles.css" />
   <link rel="stylesheet" href="workflow.css" />
-  <link rel="stylesheet" href="shade-editor.css" />
+  <link rel="stylesheet" href="basic-shade.css" />
   <script defer src="https://cdn.plot.ly/plotly-3.3.1.min.js"></script>
   <script defer src="compatibility.js"></script>
   <script defer src="shade-design.js"></script>
+  <script defer src="basic-shade.js"></script>
   <script defer src="app.js"></script>
   <script defer src="wizard.js"></script>
-  <script defer src="shade-editor.js"></script>
+  <script defer src="basic-options.js"></script>
 </head>
 <body>
   <header class="topbar">
-    <div class="brand"><span class="brand-icon">◒</span><div>OPENLAMP <span>STUDIO</span><small>DESK LAMP GENERATOR · v1.0-SHADE</small></div></div>
+    <div class="brand"><span class="brand-icon">◒</span><div>OPENLAMP <span>STUDIO</span><small>DESK LAMP GENERATOR · v1.1-BASICS</small></div></div>
     <div class="header-right"><span class="online"><span></span>PROCESAMIENTO LOCAL</span><a href="https://github.com/dcityorg/vasemaker" target="_blank" rel="noopener">Inspirado en VaseMaker ↗</a></div>
   </header>
   <main class="layout">
     <aside class="sidebar">
-      <div class="eyebrow">01 / COLECCIÓN</div>
-      <h1>Diseñá tu <em>lámpara.</em></h1>
-      <p class="intro">Modificá altura, diámetro, cintura y curvatura a partir del OBJ original. El montaje conserva sus coordenadas.</p>
+      <div class="eyebrow">P1 / SILUETA</div>
+      <h1>Diseñá una <em>pantalla.</em></h1>
+      <p class="intro">Elegí una forma básica y ajustá sus dimensiones. El encastre inferior conserva su geometría.</p>
       <div id="presets" class="presets" role="group" aria-label="Silueta"></div>
-      <div class="eyebrow spacer-top">02 / DISEÑO PARAMÉTRICO</div>
-      <p id="original-notice" class="intro" hidden>El modelo fuente sigue intacto. Restablecer recupera la geometría original exacta.</p><p class="intro">La falda inferior original mide Ø 131,2 mm; no puede reducirse mientras el encastre permanece fijo. Las tapas son piezas independientes.</p>
-      <div class="control"><div class="control-head"><label for="top-mode">Terminación superior</label></div><select id="top-mode" aria-label="Terminación superior"><option value="original">Original abierta</option><option value="flat">Cerrada plana</option><option value="curved">Cerrada curva</option></select></div><div id="controls" class="controls"></div><div class="design-actions"><button id="reset-design" class="reset-design">↺ Restablecer diseño recomendado</button><label class="advanced-toggle"><input type="checkbox" id="advanced-design" /> Ajustes avanzados</label></div><p id="curated-warning" class="curated-warning" hidden>Este diseño utiliza valores fuera de los rangos estéticos recomendados.</p>
+      <div class="eyebrow spacer-top">P2 / DIMENSIONES</div>
+      <p id="original-notice" class="intro" hidden>El modelo fuente sigue intacto. Restablecer recupera la geometría original exacta.</p><p class="intro">Altura, diámetro y espesor. La zona inferior de montaje se mantiene fija para todas las formas.</p>
+      <div class="control"><div class="control-head"><label for="top-mode">P3 · Terminación superior</label></div><select id="top-mode" aria-label="Terminación superior"><option value="original">Original abierta</option><option value="flat">Cerrada plana</option><option value="curved">Cerrada curva</option></select></div><div id="controls" class="controls"></div><div class="design-actions"><button id="reset-design" class="reset-design">↺ Restablecer diseño recomendado</button><label class="advanced-toggle"><input type="checkbox" id="advanced-design" /> Ajustes avanzados</label></div><p id="curated-warning" class="curated-warning" hidden>Este diseño utiliza valores fuera de los rangos estéticos recomendados.</p>
       <div class="eyebrow spacer-top">03 / BASE</div>
       <div id="base-presets" class="base-presets" role="group" aria-label="Seleccionar base"></div>
       <p id="mount-warning" class="mount-warning" hidden><strong>Wibble Stand — Abstractia Design.</strong> Modelo original, sin escalado ni deformación. El diámetro de unión con las pantallas OpenLamp NO ha sido verificado. La composición 3D es ilustrativa; comprobá el encastre antes de imprimir un conjunto.</p>
       <div class="eyebrow spacer-top">04 / ACOPLE Y PROYECTO</div>
       <div class="file-actions"><button id="save-json" class="secondary">Guardar JSON</button><button id="load-json" class="secondary">Abrir JSON</button></div>
       <input id="json-file" type="file" accept=".json,application/json" hidden />
-      <p class="safety"><strong>Fuente original intacta:</strong> los controles transforman una copia de Taller Top y protegen el encastre; Restablecer recupera el OBJ exacto. Las tapas plana y curva se descargan por separado. Taller Stand mantiene su geometría. <strong>Pendiente:</strong> pruebas físicas de encastre, estabilidad y temperatura; sin adaptadores eléctricos certificados.</p>
+      <p class="safety"><strong>Generación paramétrica:</strong> las pantallas nuevas son sólidos de revolución con encastre inferior nominal para Taller Stand. Taller Top sigue archivado y sus proyectos anteriores pueden abrirse. Las tapas plana y curva se descargan por separado. <strong>Pendiente:</strong> pruebas físicas de encastre, estabilidad y temperatura; sin adaptadores eléctricos certificados.</p>
     </aside>
     <section class="workspace" aria-label="Visor 3D">
-      <div class="workspace-top"><div><span class="eyebrow">VISTA DE DISEÑO</span><h2 id="current-name">Taller Top · Original</h2><span id="current-family" class="family-caption">ARCHIVO OBJ ORIGINAL</span></div><div class="viewer-chip">PANTALLA + BASE</div></div>
+      <div class="workspace-top"><div><span class="eyebrow">VISTA DE DISEÑO</span><h2 id="current-name">Taller Top · Original</h2><span id="current-family" class="family-caption">FORMA PARAMÉTRICA</span></div><div class="viewer-chip">PANTALLA + BASE</div></div>
       <div class="viewer-toolbar" role="group" aria-label="Modo de visualización"><button class="view-mode active" data-view="ensamblada">Ensamblada</button><button class="view-mode" data-view="separada">Piezas separadas</button></div><div class="viewer-shell"><div id="viewer" aria-label="Modelo tridimensional interactivo" role="img"></div><span class="view-help">Arrastrar para rotar · Rueda para zoom</span></div>
       <div class="workspace-bottom"><div class="stats"><div><span>ALTURA</span><strong id="s-height">—</strong></div><div><span>DIÁMETRO REAL</span><strong id="s-diameter">—</strong></div><div><span>TRIÁNGULOS</span><strong id="s-tris">—</strong></div><div><span>GEOMETRÍA</span><strong id="s-valid">—</strong></div></div><div class="export"><div id="status" role="status" aria-live="polite">Preparando geometría…</div><div class="export-buttons"><button id="download-shade" disabled>STL pantalla <span>↗</span></button><button id="download-base" disabled>STL base <span>↗</span></button><button id="download-cap" disabled>STL tapa <span>↗</span></button></div></div></div>
     </section>
