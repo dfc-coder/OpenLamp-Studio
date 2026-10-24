@@ -15,13 +15,17 @@ jobs:
         with:
           node-version: '22'
       - name: Check JavaScript syntax
-        run: node --check app.js
+        run: |
+          node --check app.js
+          node --check compatibility.js
+          node --check wizard.js
       - name: Validate geometry and binary STL
         run: |
           node tests/verify.cjs
           node tests/taller_top.cjs
           node tests/original_top.cjs
           node tests/parametric_original.cjs
+          node tests/compatibility.cjs
       - name: Validate optimized imported stand
         run: |
           node tests/stand.cjs
