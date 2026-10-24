@@ -34,6 +34,7 @@ jobs:
         run: |
           node tests/verify.cjs
           node tests/stand.cjs
+          node tests/taller_base.cjs
           node tests/export.cjs
 
       - name: Empaquetar exclusivamente la aplicación
@@ -44,6 +45,8 @@ jobs:
           cp index.html app.js styles.css _site/
           cp assets/stands/wibble-stand.olmesh.gz _site/assets/stands/
           cp assets/stands/wibble-reference.webp _site/assets/stands/
+          cp assets/stands/taller-stand.olmesh.gz _site/assets/stands/
+          cp assets/stands/taller-stand-reference.png _site/assets/stands/
           touch _site/.nojekyll
 
       - name: Verificar archivos de publicación
@@ -53,6 +56,8 @@ jobs:
           test -s _site/styles.css
           test -s _site/assets/stands/wibble-stand.olmesh.gz
           test -s _site/assets/stands/wibble-reference.webp
+          test -s _site/assets/stands/taller-stand.olmesh.gz
+          test -s _site/assets/stands/taller-stand-reference.png
           ! grep -q 'src="/app.js"' _site/index.html
           ! grep -q 'href="/styles.css"' _site/index.html
           echo "Sitio estático listo para /OpenLamp-Studio/"
