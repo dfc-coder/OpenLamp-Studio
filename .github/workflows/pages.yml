@@ -34,6 +34,8 @@ jobs:
           node --check wizard.js
           node --check shade-design.js
           node --check shade-editor.js
+          node --check basic-shade.js
+          node --check basic-options.js
 
       - name: Verificar mallas, STL y compatibilidad
         run: |
@@ -43,6 +45,7 @@ jobs:
           node tests/parametric_original.cjs
           node tests/shade-design.cjs
           node tests/shade-mesh.cjs
+          node tests/basic-shade.cjs
           node tests/compatibility.cjs
           node tests/stand.cjs
           node tests/taller_base.cjs
@@ -54,7 +57,7 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p _site/assets/stands _site/assets/shades
-          cp index.html app.js styles.css compatibility.js wizard.js workflow.css shade-design.js shade-editor.js shade-editor.css CREDITOS.md _site/
+          cp index.html app.js styles.css compatibility.js wizard.js workflow.css shade-design.js shade-editor.js shade-editor.css basic-shade.js basic-options.js basic-shade.css CREDITOS.md _site/
           cp assets/stands/wibble-stand.olmesh.gz _site/assets/stands/
           cp assets/stands/wibble-reference.webp _site/assets/stands/
           cp assets/stands/taller-stand.olmesh.gz _site/assets/stands/
@@ -71,6 +74,9 @@ jobs:
           test -s _site/shade-design.js
           test -s _site/shade-editor.js
           test -s _site/shade-editor.css
+          test -s _site/basic-shade.js
+          test -s _site/basic-options.js
+          test -s _site/basic-shade.css
           test -s _site/workflow.css
           test -s _site/app.js
           test -s _site/styles.css
