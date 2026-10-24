@@ -422,7 +422,7 @@
   function deformOriginalShade(source,p){
     if(originalParameterState(p))return source;
     const h=Number(p.height),d=Number(p.diameter),waist=Number(p.waist||0),curve=Number(p.curvature||0);
-    if(![h,d,waist,curve].every(Number.isFinite)||h<195||h>265||d<131.198182||d>175||
+    if(![h,d,waist,curve].every(Number.isFinite)||h<195||h>265.2||d<131.198182||d>175.2||
       Math.abs(waist)>8||Math.abs(curve)>8)throw new Error('Parámetros fuera de límites seguros');
     const base=source.positions,out=new Float32Array(base.length);
     const dh=h-ORIGINAL_SHADE_HEIGHT,dd=d-131.198182;
