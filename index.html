@@ -13,13 +13,14 @@
   <script defer src="compatibility.js"></script>
   <script defer src="shade-design.js"></script>
   <script defer src="basic-shade.js?v=1.2"></script>
+  <script defer src="mount-adapters.js"></script>
   <script defer src="app.js"></script>
   <script defer src="wizard.js"></script>
   <script defer src="basic-options.js?v=1.2"></script>
 </head>
 <body>
   <header class="topbar">
-    <div class="brand"><span class="brand-icon">◒</span><div>OPENLAMP <span>STUDIO</span><small>DESK LAMP GENERATOR · v1.2-SHAPES</small></div></div>
+    <div class="brand"><span class="brand-icon">◒</span><div>OPENLAMP <span>STUDIO</span><small>DESK LAMP GENERATOR · v1.3-MOUNTS</small></div></div>
     <div class="header-right"><span class="online"><span></span>PROCESAMIENTO LOCAL</span><a href="https://github.com/dcityorg/vasemaker" target="_blank" rel="noopener">Inspirado en VaseMaker ↗</a></div>
   </header>
   <main class="layout">
@@ -40,9 +41,9 @@
       <p class="safety"><strong>Generación paramétrica:</strong> las pantallas nuevas son sólidos de revolución con encastre inferior nominal para Taller Stand. Taller Top sigue archivado y sus proyectos anteriores pueden abrirse. Las tapas plana y curva se descargan por separado. <strong>Pendiente:</strong> pruebas físicas de encastre, estabilidad y temperatura; sin adaptadores eléctricos certificados.</p>
     </aside>
     <section class="workspace" aria-label="Visor 3D">
-      <div class="workspace-top"><div><span class="eyebrow">VISTA DE DISEÑO</span><h2 id="current-name">Taller Top · Original</h2><span id="current-family" class="family-caption">FORMA PARAMÉTRICA</span></div><div class="viewer-chip">PANTALLA + BASE</div></div>
+      <div class="workspace-top"><div><span class="eyebrow">VISTA DE DISEÑO</span><h2 id="current-name">Taller Top · Original</h2><span id="current-family" class="family-caption">FORMA PARAMÉTRICA</span></div><div class="viewer-chip">PANTALLA + ACOPLE + BASE</div></div>
       <div class="viewer-toolbar" role="group" aria-label="Modo de visualización"><button class="view-mode active" data-view="ensamblada">Ensamblada</button><button class="view-mode" data-view="separada">Piezas separadas</button></div><div class="viewer-shell"><div id="viewer" aria-label="Modelo tridimensional interactivo" role="img"></div><span class="view-help">Arrastrar para rotar · Rueda para zoom</span></div>
-      <div class="workspace-bottom"><div class="stats"><div><span>ALTURA</span><strong id="s-height">—</strong></div><div><span>DIÁMETRO REAL</span><strong id="s-diameter">—</strong></div><div><span>TRIÁNGULOS</span><strong id="s-tris">—</strong></div><div><span>GEOMETRÍA</span><strong id="s-valid">—</strong></div></div><div class="export"><div id="status" role="status" aria-live="polite">Preparando geometría…</div><div class="export-buttons"><button id="download-shade" disabled>STL pantalla <span>↗</span></button><button id="download-base" disabled>STL base <span>↗</span></button><button id="download-cap" disabled>STL tapa <span>↗</span></button></div></div></div>
+      <div class="workspace-bottom"><div class="stats"><div><span>ALTURA</span><strong id="s-height">—</strong></div><div><span>DIÁMETRO REAL</span><strong id="s-diameter">—</strong></div><div><span>TRIÁNGULOS</span><strong id="s-tris">—</strong></div><div><span>GEOMETRÍA</span><strong id="s-valid">—</strong></div></div><div class="export"><div id="status" role="status" aria-live="polite">Preparando geometría…</div><div class="export-buttons"><button id="download-shade" disabled>STL pantalla <span>↗</span></button><button id="download-base" disabled>STL base <span>↗</span></button><button id="download-cap" disabled>STL tapa <span>↗</span></button><button id="download-adapter" disabled>STL acople Wibble <span>↗</span></button></div></div></div>
     </section>
   </main>
   <footer>OpenLamp Studio · Código MIT · Sin registro ni seguimiento · <a href="CREDITOS.md" target="_blank">Créditos y limitaciones</a></footer>
