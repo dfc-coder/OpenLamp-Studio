@@ -762,7 +762,8 @@
       const parent=byId('in-'+key)?.closest('.control');if(parent)parent.hidden=exact;
     }
     for(const key of ['height','diameter','waist','curvature']){
-      const parent=byId('in-'+key)?.closest('.control');if(parent)parent.hidden=!exact;
+      const parent=byId('in-'+key)?.closest('.control');
+      if(parent)parent.hidden=!exact||(['waist','curvature'].includes(key)&&state.shadeDesign?.family!=='original');
     }
     for(const el of document.querySelectorAll('.view-mode'))el.classList.toggle('active',el.dataset.view===viewMode);
   }
