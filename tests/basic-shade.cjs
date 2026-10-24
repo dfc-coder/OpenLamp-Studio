@@ -37,6 +37,39 @@ for(const p of B.presets){
  const changed=B.build({...p,height:p.height+8,diameter:p.diameter+8});
  assert(a.validate(changed).ok,p.id+' changed geometry');
 }
+// Design identities must be distinguishable even with identical dimensions.
+// Preset cards use exactly this same lathed radial profile.
+const common={height:170,diameter:160,thickness:1.8};
+const silhouettes=B.presets.map(p=>{
+ const same={...p,...common,basicOptions:{...p.basicOptions,
+   ...(p.id==='basic_cone'||p.id==='basic_bell'?{topDiameter:105}:{})}};
+ const samples=Array.from({length:65},(_,i)=>B.radiusAt((i+10)/80,same)/(common.diameter/2));
+ return {id:p.id,samples};
+});
+for(let i=0;i<silhouettes.length;i++)for(let j=i+1;j<silhouettes.length;j++){
+ const left=silhouettes[i],right=silhouettes[j];
+ const distance=left.samples.reduce((sum,r,k)=>sum+Math.abs(r-right.samples[k]),0)/left.samples.length;
+ assert(distance>0.030,
+   'Redundant profiles: '+left.id+' / '+right.id+' (radial signature distance '+distance.toFixed(4)+')');
+}
+const sphere={...B.presets.find(p=>p.id==='basic_sphere'),...common};
+const pear={...B.presets.find(p=>p.id==='basic_pear'),...common};
+const sphereLow=B.radiusAt(.25,sphere),sphereHigh=B.radiusAt(.75,sphere);
+const pearLow=B.radiusAt(.25,pear),pearHigh=B.radiusAt(.75,pear);
+assert(Math.abs(sphereLow-sphereHigh)<0.01,'Sphere must remain symmetric above fixed collar');
+assert(pearLow-pearHigh>common.diameter*.12,'Pear must have a pronounced low belly and narrow neck');
+assert(B.radiusAt(.34,pear)>B.radiusAt(.55,pear),'Pear peak must lie below midheight');
+const disc={...B.presets.find(p=>p.id==='basic_disc'),...common};
+assert(B.radiusAt(.72,disc)>B.radiusAt(.22,disc)*1.8,
+ 'Disc must have a wide upper plate, not a second Sphere');
+const bell={...B.presets.find(p=>p.id==='basic_bell'),...common,
+ basicOptions:{topDiameter:105}};
+const conical={...B.presets.find(p=>p.id==='basic_cone'),...common,
+ basicOptions:{topDiameter:105}};
+assert(B.radiusAt(.48,conical)-B.radiusAt(.48,bell)>common.diameter*.025,
+ 'Bell requires a stronger flared lip than Cone');
+console.log('PASS morphology: pairwise shape signatures, symmetric Sphere, lower Pear belly, upper Disc shelf and Bell flare');
+
 let cone=B.presets.find(p=>p.id==='basic_cone');
 assert.equal(B.optionsFor({...cone,basicOptions:{topDiameter:98}}).topDiameter,98);
 assert(!B.validateParams({...cone,thickness:0.5}).ok);
