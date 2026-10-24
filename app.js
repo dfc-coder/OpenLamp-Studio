@@ -15,7 +15,7 @@
     original: {label:'ARCHIVO OBJ ORIGINAL',ribDepth:[0,0],ribCount:[0,0],twist:[0,0]},
   };
   const PRESETS = [
-    {id:'tallertop_original',name:'Taller Top · Original',family:'original',glyph:'◉',height:228.142662,diameter:131.198182,thickness:1.6,ribDepth:0,ribCount:0,twist:0,topMode:'original'},
+    {id:'tallertop_original',name:'Taller Top · Original',family:'original',glyph:'◉',height:228.142662,diameter:131.198182,thickness:1.6,ribDepth:0,ribCount:0,twist:0,topMode:'original',waist:0,curvature:0},
     {id:'taller_top',archived:true,name:'Taller Top',family:'taller',glyph:'⌛',height:228,diameter:131.2,thickness:1.6,ribDepth:0.6,ribCount:40,twist:0,topMode:'open'},
     {id:'halo',archived:true,name:'Halo',family:'atelier',glyph:'◒',height:120,diameter:238,thickness:1.6,ribDepth:0,ribCount:0,twist:0},
     {id:'domo',archived:true,name:'Domo',family:'atelier',glyph:'◠',height:128,diameter:220,thickness:1.6,ribDepth:0,ribCount:0,twist:0},
@@ -33,6 +33,7 @@
     ['thickness','Espesor','mm',1.2,3.5,0.1], ['ribDepth','Relieve','mm',0,3.5,0.1],
     ['ribCount','Estrías','',0,34,1], ['twist','Torsión','°',-8,8,1],
     ['clearance','Holgura radial de acople','mm',0.2,0.8,0.05],
+    ['waist','Cintura','mm',-8,8,0.5], ['curvature','Curvatura','mm',-8,8,0.5],
   ];
   // Classic lamp silhouettes defined by piecewise cubic Bézier curves.
   // Each segment is [p0, p1, p2, p3] in normalized [height, radiusFactor].
@@ -101,7 +102,7 @@
   const TALLER_MOUNT_INNER_RADIUS=35.04433221;
   const TALLER_MOUNT_ZONE_HEIGHT=14.17264533;
   const TALLER_MOUNT_FIXED_UNTIL=20;
-  const TALLER_TOP_MODES=['open','flat','curved'];
+  const TALLER_TOP_MODES=['original','open','flat','curved'];
   const SHADE_SEGMENTS=128, SHADE_LEVELS=100, BASE_SEGMENTS=256, TAU=2*Math.PI;
   const OPENING_RADIUS=40; // inner opening radius in mm; fixed shared shade/base interface
   const BASE_HEIGHT=12, SEAT_HEIGHT=9, SEAT_WALL=4, HOLE_RADIUS=3.5;
@@ -129,7 +130,7 @@
   function sanitize(raw,{legacy=false}={}){
     const preset=presetById(raw.id);
     if(!preset)throw new Error('Perfil desconocido');
-    const out={...preset,clearance:defaultClearance};
+    const out={waist:0,curvature:0,...preset,clearance:defaultClearance};
     for(const [key] of FIELDS){
       const value=raw[key]===undefined?out[key]:raw[key];
       if(typeof value!=='number'||!Number.isFinite(value))throw new Error('Parámetro inválido: '+key);
@@ -408,6 +409,91 @@
     }
     return originalShadePromise;
   }
+  // Deformation always starts with the original, never the previous output.
+  // The lowest 20 mm of CAD coordinates are bitwise unchanged.
+  const ORIGINAL_SHADE_Z_MAX=147.25173950;
+  const ORIGINAL_SHADE_HEIGHT=ORIGINAL_SHADE_Z_MAX-ORIGINAL_SHADE_Z_MIN;
+  const DEFORMATION_LOCK_END=ORIGINAL_SHADE_Z_MIN+20;
+  const DEFORMATION_BLEND_END=DEFORMATION_LOCK_END+35;
+  function originalParameterState(p){
+    return p.height===ORIGINAL_SHADE_HEIGHT && p.diameter===131.198182 &&
+      (p.waist||0)===0 && (p.curvature||0)===0;
+  }
+  function deformOriginalShade(source,p){
+    if(originalParameterState(p))return source;
+    const h=Number(p.height),d=Number(p.diameter),waist=Number(p.waist||0),curve=Number(p.curvature||0);
+    if(![h,d,waist,curve].every(Number.isFinite)||h<195||h>265||d<131.198182||d>175||
+      Math.abs(waist)>8||Math.abs(curve)>8)throw new Error('Parámetros fuera de límites seguros');
+    const base=source.positions,out=new Float32Array(base.length);
+    const dh=h-ORIGINAL_SHADE_HEIGHT,dd=d-131.198182;
+    const usable=ORIGINAL_SHADE_Z_MAX-DEFORMATION_LOCK_END;
+    for(let i=0;i<base.length;i+=3){
+      const x=base[i],y=base[i+1],z=base[i+2];
+      if(z<=DEFORMATION_LOCK_END){
+        out[i]=x;out[i+1]=y;out[i+2]=z;continue;
+      }
+      const t=clamp((z-DEFORMATION_LOCK_END)/usable,0,1);
+      const blend=smoothstep((z-DEFORMATION_LOCK_END)/(DEFORMATION_BLEND_END-DEFORMATION_LOCK_END));
+      // Radial scaling retains sculptural ribs as part of the ORIGINAL indexed mesh.
+      // Width parameter changes the body but not the oversized original bottom skirt.
+      const width=dd*blend*Math.pow(t,0.7)*0.5;
+      const waistDelta=waist*blend*Math.exp(-Math.pow((t-0.50)/0.22,2));
+      const curveDelta=curve*blend*Math.sin(2*Math.PI*t);
+      const radius=Math.hypot(x,y),offset=width+waistDelta+curveDelta;
+      const factor=radius>0.001?Math.max(0.15,(radius+offset)/radius):1;
+      out[i]=x*factor;out[i+1]=y*factor;out[i+2]=z+dh*t*blend;
+    }
+    return {positions:out,indices:source.indices,triangleCount:source.triangleCount,vertexCount:source.vertexCount};
+  }
+  // Independent removable closure: no change to the original mesh topology.
+  // A cylindrical locating ring fits inside the existing upper opening.
+  function buildTopCap(shade,mode){
+    if(mode==='original'||mode==='open')return null;
+    if(mode!=='flat'&&mode!=='curved')throw new Error('Cierre inválido');
+    const P=shade.positions;let zTop=-Infinity;
+    for(let i=2;i<P.length;i+=3)zTop=Math.max(zTop,P[i]);
+    let inner=Infinity,outer=0;
+    for(let i=0;i<P.length;i+=3){
+      if(Math.abs(P[i+2]-zTop)>0.001)continue;
+      const r=Math.hypot(P[i],P[i+1]);
+      inner=Math.min(inner,r);outer=Math.max(outer,r);
+    }
+    if(!Number.isFinite(inner)||inner<8||outer<inner)throw new Error('Borde superior inválido');
+    const pegOuter=inner-0.45,pegInner=pegOuter-1.8,flangeOuter=outer+1.2;
+    if(pegInner<5)throw new Error('Sin lugar para aro de fijación');
+    const bottom=zTop-3.2,under=zTop+0.35,top=zTop+2.6;
+    const outline=[
+      [0.01,under],[pegInner,under],[pegInner,bottom],[pegOuter,bottom],
+      [pegOuter,under],[flangeOuter,under],[flangeOuter,top],
+    ];
+    if(mode==='curved'){
+      for(let i=1;i<=22;i++){
+        const fraction=i/22,rad=flangeOuter*(1-fraction);
+        outline.push([Math.max(0.01,rad),top+16*(fraction*fraction*(3-2*fraction))]);
+      }
+    } else outline.push([0.01,top]);
+    const n=128,vertices=[],indices=[],idx=(q,j)=>q*n+j;
+    for(const [r,z] of outline)for(let j=0;j<n;j++){
+      const a=TAU*j/n;vertices.push(r*Math.cos(a),r*Math.sin(a),z);
+    }
+    for(let q=0;q<outline.length-1;q++)for(let j=0;j<n;j++){
+      const k=(j+1)%n,a=idx(q,j),b=idx(q,k),c=idx(q+1,j),d=idx(q+1,k);
+      indices.push(a,c,b,b,c,d);
+    }
+    // Seal both ~zero-radius tips with fans (do not create zero-area triangles).
+    // The first/last rings have a nonzero 0.01-mm radius.
+    const lowerTip=vertices.length/3;vertices.push(0,0,under);
+    const upperTip=vertices.length/3;vertices.push(0,0,outline[outline.length-1][1]);
+    for(let j=0;j<n;j++){
+      const k=(j+1)%n;
+      indices.push(idx(0,j),idx(0,k),lowerTip);
+      indices.push(idx(outline.length-1,j),upperTip,idx(outline.length-1,k));
+    }
+    const cap=createMesh(vertices,indices);
+    const check=validate(cap);
+    if(!check.ok)throw new Error('La tapa no supera validación: '+JSON.stringify(check));
+    return cap;
+  }
   async function loadStand(id=selectedBase){
     const preset=basePresetById(id);
     if(standMeshes.has(id))return standMeshes.get(id);
@@ -562,7 +648,9 @@
     let gl=false;try{const c=document.createElement('canvas');gl=Boolean(c.getContext('webgl')||c.getContext('webgl2'));}catch(e){gl=false;}
     if(!gl||typeof Plotly==='undefined')return fallback2D();
     const exploded=viewMode==='separada';
-    const traces=[makeTrace(all.base,'#bb765f'),makeTrace(all.shade,'#e7d6bc',shadeElevation()+(exploded?27:0))];
+    const dz=shadeElevation()+(exploded?27:0);
+    const traces=[makeTrace(all.base,'#bb765f'),makeTrace(all.shade,'#e7d6bc',dz)];
+    if(all.cap)traces.push(makeTrace(all.cap,'#ddceb3',dz+(exploded?18:0)));
     const layout={paper_bgcolor:'rgba(0,0,0,0)',plot_bgcolor:'rgba(0,0,0,0)',margin:{t:0,b:0,l:0,r:0},showlegend:false,uirevision:'orbit',
       scene:{xaxis:{visible:false},yaxis:{visible:false},zaxis:{visible:false},aspectmode:'data',camera:{eye:{x:1.4,y:1.7,z:1.13}},bgcolor:'rgba(0,0,0,0)'},dragmode:'turntable'};
     const opts={responsive:true,displaylogo:false,displayModeBar:false,scrollZoom:true};
@@ -573,10 +661,10 @@
   const timer=()=>{clearTimeout(pendingRender);pendingRender=setTimeout(render,170);};
   function refreshControls(){
     const exact=state.id==='tallertop_original';
-    byId('controls').hidden=exact;
+    byId('controls').hidden=false;
     const actions=document.querySelector('.design-actions');if(actions)actions.hidden=exact;
-    const term=byId('top-mode').closest('.control');if(term)term.hidden=exact;
-    const notice=byId('original-notice');if(notice)notice.hidden=!exact;
+    const term=byId('top-mode').closest('.control');if(term)term.hidden=!exact;
+    const notice=byId('original-notice');if(notice)notice.hidden=true;
     for(const [key,label,unit,min,max] of FIELDS){
       const input=byId('in-'+key);
       let [lo,hi]=fieldLimits(key,state,byId('advanced-design').checked);
@@ -600,22 +688,30 @@
     byId('current-name').textContent=preset.name;
     byId('current-family').textContent=FAMILY[preset.family].label;
     byId('curated-warning').hidden=!exceedsCurated(state);
-    byId('top-mode').value=['open','flat','curved'].includes(state.topMode)?state.topMode:'open';
+    byId('top-mode').value=TALLER_TOP_MODES.includes(state.topMode)?state.topMode:'original';
+    for(const key of ['thickness','ribDepth','ribCount','twist','clearance']){
+      const parent=byId('in-'+key)?.closest('.control');if(parent)parent.hidden=exact;
+    }
+    for(const key of ['height','diameter','waist','curvature']){
+      const parent=byId('in-'+key)?.closest('.control');if(parent)parent.hidden=!exact;
+    }
     for(const el of document.querySelectorAll('.view-mode'))el.classList.toggle('active',el.dataset.view===viewMode);
   }
   async function render(){
-    for(const id of ['download-shade','download-base'])byId(id).disabled=true;
+    for(const id of ['download-shade','download-base','download-cap'])byId(id).disabled=true;
     const requestId=++renderRequest;
     byId('status').textContent='Generando pantalla y base…';
     try{
       const exact=state.id==='tallertop_original';
-      const shade=exact?await loadOriginalShade():buildShade(state);
+      const shade=exact?deformOriginalShade(await loadOriginalShade(),state):buildShade(state);
+      const cap=exact?buildTopCap(shade,state.topMode):null;
       const bp=currentBasePreset(),base=await loadStand(bp.id);
       if(requestId!==renderRequest)return;
-      const shadeReport=exact?{ok:true,source:'SHA-256/CI original asset'}:validate(shade),baseReport=validate(base);
+      const changed=exact&&!originalParameterState(state);
+      const shadeReport=exact&&!changed?{ok:true,source:'SHA-256/CI original asset'}:validate(shade),baseReport=validate(base);
       const baseAccepted=baseReport.ok;
-      meshes={shade,base};reports={shade:shadeReport,base:baseReport,baseAccepted};
-      byId('s-height').textContent=`${Math.round(exact?Math.max(baseHeight(),147.2517395+shadeElevation()):state.height+shadeElevation())} mm`;
+      meshes={shade,base,cap};reports={shade:shadeReport,base:baseReport,baseAccepted,cap:cap?{ok:true}:null};
+      byId('s-height').textContent=`${Math.round(exact?Math.max(baseHeight(),ORIGINAL_SHADE_Z_MIN+state.height+shadeElevation()):state.height+shadeElevation())} mm`;
       let maxR=0;for(let i=0;i<shade.positions.length;i+=3)maxR=Math.max(maxR,Math.hypot(shade.positions[i],shade.positions[i+1]));
       byId('s-diameter').textContent=`${Math.ceil(2*maxR)} mm`;
       byId('s-tris').textContent=(shade.triangleCount+base.triangleCount).toLocaleString('es-AR');
@@ -625,6 +721,7 @@
         ? 'Pantalla original + base geométricamente verificadas · encastre físico pendiente'
         : 'Stand Wibble y pantalla listos · Montaje NO verificado';
       for(const id of ['download-shade','download-base'])byId(id).disabled=false;
+      byId('download-cap').disabled=!cap;
       try{await plotMeshes(meshes);}catch(err){byId('status').textContent='STL preparados · No se pudo cargar el visor';console.warn(err);}
     }catch(e){byId('status').textContent='Error: '+(e.message||e);byId('s-valid').textContent='Error';console.error(e);}
   }
@@ -650,15 +747,18 @@
     byId('reset-design').addEventListener('click',()=>{state=suggestedParams(state.id);refreshControls();timer();});
     document.querySelectorAll('.view-mode').forEach(btn=>btn.addEventListener('click',()=>{viewMode=btn.dataset.view;refreshControls();if(meshes)plotMeshes(meshes).catch(console.warn);}));
     byId('download-shade').addEventListener('click',()=>{if(!reports?.shade?.ok)return;fileDownload(stlBinary(meshes.shade),state.id==='tallertop_original'?'tallertop-original-exacto.stl':`openlamp-pantalla-${state.id}.stl`,'model/stl');});
+    byId('download-cap').addEventListener('click',()=>{if(!meshes?.cap||!reports?.cap?.ok)return;
+      fileDownload(stlBinary(meshes.cap),`openlamp-taller-top-tapa-${state.topMode}.stl`,'model/stl');
+    });
     byId('download-base').addEventListener('click',()=>{if(!reports?.baseAccepted)return;
       const name=currentBasePreset().filename;
       fileDownload(stlBinary(meshes.base),name,'model/stl');
     });
-    byId('save-json').addEventListener('click',()=>fileDownload(JSON.stringify({app:'openlamp-studio',version:4,params:state,baseId:selectedBase},null,2),`openlamp-${state.id}.json`,'application/json'));
+    byId('save-json').addEventListener('click',()=>fileDownload(JSON.stringify({app:'openlamp-studio',version:5,params:state,baseId:selectedBase},null,2),`openlamp-${state.id}.json`,'application/json'));
     byId('load-json').addEventListener('click',()=>byId('json-file').click());
     byId('json-file').addEventListener('change',async e=>{const file=e.target.files?.[0];if(!file)return;try{
       const data=JSON.parse(await file.text());
-      if(data.app!=='openlamp-studio'||![1,2,3,4].includes(data.version))throw new Error('Formato incompatible');
+      if(data.app!=='openlamp-studio'||![1,2,3,4,5].includes(data.version))throw new Error('Formato incompatible');
       state=sanitize(data.params,{legacy:data.version<3});
       selectedBase=BASE_PRESETS.some(p=>p.id===data.baseId)?data.baseId:'flat';
       if(exceedsCurated(state))byId('advanced-design').checked=true;
@@ -666,6 +766,6 @@
     }catch(err){alert('No se pudo abrir el proyecto: '+err.message);}finally{e.target.value='';}});
     refreshControls();render();
   }
-  window.OpenLampTest={weldCoincidentVertices,loadOriginalShade,ORIGINAL_SHADE_PARTS,ORIGINAL_SHADE_SHA256,buildTallerShade,tallerOuterRadius,shadeElevation,TALLER_MOUNT_INNER_RADIUS,TALLER_MOUNT_ZONE_HEIGHT,TALLER_TOP_PROFILE,TALLER_TOP_ORIGINAL_HEIGHT,TALLER_TOP_ORIGINAL_DIAMETER,buildShade,buildBase,parseStandMesh,validate,stlBinary,PRESETS,BASE_PRESETS,FAMILY,SHAPE_PROFILES,profile,outerRadius,surfaceDetail,fieldLimits,sanitize,OPENING_RADIUS,BASE_HEIGHT,SEAT_HEIGHT,defaultClearance,getState:()=>({...state}),getReport:()=>reports};
+  window.OpenLampTest={deformOriginalShade,buildTopCap,originalParameterState,DEFORMATION_LOCK_END,ORIGINAL_SHADE_HEIGHT,weldCoincidentVertices,loadOriginalShade,ORIGINAL_SHADE_PARTS,ORIGINAL_SHADE_SHA256,buildTallerShade,tallerOuterRadius,shadeElevation,TALLER_MOUNT_INNER_RADIUS,TALLER_MOUNT_ZONE_HEIGHT,TALLER_TOP_PROFILE,TALLER_TOP_ORIGINAL_HEIGHT,TALLER_TOP_ORIGINAL_DIAMETER,buildShade,buildBase,parseStandMesh,validate,stlBinary,PRESETS,BASE_PRESETS,FAMILY,SHAPE_PROFILES,profile,outerRadius,surfaceDetail,fieldLimits,sanitize,OPENING_RADIUS,BASE_HEIGHT,SEAT_HEIGHT,defaultClearance,getState:()=>({...state}),getReport:()=>reports};
   window.addEventListener('load',init);
 })();
