@@ -10,6 +10,7 @@ const raw=zlib.gunzipSync(bytes);
 const buffer=raw.buffer.slice(raw.byteOffset,raw.byteOffset+raw.byteLength);
 const stand=a.parseStandMesh(buffer);
 assert.equal(a.validate(stand).ok,true,'Wibble source must be valid');
+const immutableSourceCopy=Buffer.from(stand.positions.buffer,stand.positions.byteOffset,stand.positions.byteLength).subarray(0).toString('base64');
 const direct=M.mountFor('flat',stand);
 assert(!direct.adapter);assert.equal(direct.interface.kind,'direct');
 assert(Math.abs(direct.shadeBottom-(35.59607-14.17))<1e-6);
@@ -22,6 +23,27 @@ assert.notEqual(integrated.shadeBottom,direct.shadeBottom);
 const check=a.validate(integrated.adapter);
 assert(check.ok,'Wibble bridge must be a closed orientable manifold: '+JSON.stringify(check));
 assert.equal(integrated.adapter.triangleCount,integrated.adapter.indices.length/3);
+assert.equal(Buffer.from(stand.positions.buffer,stand.positions.byteOffset,stand.positions.byteLength).toString('base64'),
+  immutableSourceCopy,'Wibble OBJ vertices must not be modified');
+assert(integrated.bridgeProfile.seatTop-integrated.shadeBottom>13.5 &&
+       integrated.bridgeProfile.seatTop-integrated.shadeBottom<14.17,
+  'Shade has to overlap the Wibble adapter male seat with nominal insertion');
+const upperSampler=M.upperSurfaceSampler(stand,integrated.bridgeProfile.top-26);
+let reliefSamples=0;
+const adapter=integrated.adapter;
+const countAround=128;
+const rings=adapter.positions.length/(3*countAround);
+const firstUndersideRing=23;
+for(let k=firstUndersideRing;k<rings;k++)for(let j=0;j<countAround;j++){
+  const i=3*(k*countAround+j),x=adapter.positions[i],y=adapter.positions[i+1],z=adapter.positions[i+2];
+  const contactZ=upperSampler(x,y);
+  if(!Number.isFinite(contactZ))continue;
+  assert(z+0.002>=contactZ+integrated.interface.contactClearance,
+    'Bridge underside must remain CAD-clear of the Wibble mesh');
+  reliefSamples++;
+}
+assert(reliefSamples>100,'Must check real source-derived contact samples, not just four tips');
+
 const file=a.stlBinary(integrated.adapter);
 assert.equal(file.byteLength,84+integrated.adapter.triangleCount*50);
 assert.strictEqual(M.mountFor('wibble',stand).adapter,integrated.adapter,'identical source must reuse bridge');
