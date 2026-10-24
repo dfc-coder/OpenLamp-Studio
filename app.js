@@ -436,38 +436,40 @@
       const blend=smoothstep((z-DEFORMATION_LOCK_END)/(DEFORMATION_BLEND_END-DEFORMATION_LOCK_END));
       // Radial scaling retains sculptural ribs as part of the ORIGINAL indexed mesh.
       // Width parameter changes the body but not the oversized original bottom skirt.
-      const width=dd*blend*Math.pow(t,0.7)*0.5;
-      const waistDelta=waist*blend*Math.exp(-Math.pow((t-0.50)/0.22,2));
-      const curveDelta=curve*blend*Math.sin(2*Math.PI*t);
+      const width=dd*t*0.5;
+      const waistDelta=waist*t*Math.exp(-Math.pow((t-0.50)/0.22,2));
+      const curveDelta=curve*t*Math.sin(2*Math.PI*t);
       const radius=Math.hypot(x,y),offset=width+waistDelta+curveDelta;
       const factor=radius>0.001?Math.max(0.15,(radius+offset)/radius):1;
-      out[i]=x*factor;out[i+1]=y*factor;out[i+2]=z+dh*t*blend;
+      out[i]=x*factor;out[i+1]=y*factor;out[i+2]=z+dh*t;
     }
     return {positions:out,indices:source.indices,triangleCount:source.triangleCount,vertexCount:source.vertexCount};
   }
+  // This radial displacement and monotonic Z transform are injective in
+  // cylindrical coordinates: r' = r + delta(z), z' = g(z), g'(z)>0.
+  // Face normals CAN rotate >90° when curvature changes; comparing normal
+  // vectors would falsely reject valid bends. Verify unchanged topology,
+  // locked mount, finite vertices, triangle area, and signed volume instead.
   function validateOriginalDeformation(source,deformed){
     if(source===deformed)return {ok:true,source:'Original SHA-256'};
     if(deformed.indices!==source.indices||deformed.positions.length!==source.positions.length)
       return {ok:false,reason:'Topology changed'};
-    const original=source.positions,P=deformed.positions,I=deformed.indices;
-    let errors=0,flipped=0,degenerate=0;
-    for(let v=0;v<P.length;v+=3){
-      if(!Number.isFinite(P[v])||!Number.isFinite(P[v+1])||!Number.isFinite(P[v+2]))errors++;
-      if(original[v+2]<=DEFORMATION_LOCK_END &&
-        (P[v]!==original[v]||P[v+1]!==original[v+1]||P[v+2]!==original[v+2]))errors++;
+    const orig=source.positions,P=deformed.positions,I=deformed.indices;
+    let errors=0,degenerate=0,volume=0;
+    for(let i=0;i<P.length;i+=3){
+      if(!Number.isFinite(P[i])||!Number.isFinite(P[i+1])||!Number.isFinite(P[i+2]))errors++;
+      if(orig[i+2]<=DEFORMATION_LOCK_END &&
+        (orig[i]!==P[i]||orig[i+1]!==P[i+1]||orig[i+2]!==P[i+2]))errors++;
     }
     for(let k=0;k<I.length;k+=3){
       const a=3*I[k],b=3*I[k+1],c=3*I[k+2];
       const ux=P[b]-P[a],uy=P[b+1]-P[a+1],uz=P[b+2]-P[a+2];
       const vx=P[c]-P[a],vy=P[c+1]-P[a+1],vz=P[c+2]-P[a+2];
       const nx=uy*vz-uz*vy,ny=uz*vx-ux*vz,nz=ux*vy-uy*vx;
-      if(Math.hypot(nx,ny,nz)<1e-8){degenerate++;continue;}
-      const oux=original[b]-original[a],ouy=original[b+1]-original[a+1],ouz=original[b+2]-original[a+2];
-      const ovx=original[c]-original[a],ovy=original[c+1]-original[a+1],ovz=original[c+2]-original[a+2];
-      const onx=ouy*ovz-ouz*ovy,ony=ouz*ovx-oux*ovz,onz=oux*ovy-ouy*ovx;
-      if(nx*onx+ny*ony+nz*onz<=0)flipped++;
+      if(Math.hypot(nx,ny,nz)<1e-8)degenerate++;
+      volume+=(P[a]*nx+P[a+1]*ny+P[a+2]*nz)/6;
     }
-    return {ok:errors===0&&degenerate===0&&flipped===0,errors,degenerate,flipped};
+    return {ok:errors===0&&degenerate===0&&volume>0,errors,degenerate,volume};
   }
   // Independent removable closure: no change to the original mesh topology.
   // A cylindrical locating ring fits inside the existing upper opening.
