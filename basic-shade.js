@@ -48,7 +48,7 @@
    let r;
    switch(shape){
     case 'cylinder':r=R;break;
-    case 'cone':r=R+(o.topDiameter/2-R)*u;break;
+    case 'cone':r=R+(o.topDiameter/2-R)*clamp((u-0.18)/0.82,0,1);break;
     case 'dome':{
       // Gentle upright cylinder transforming into a quarter-dome shoulder.
       const v=smooth((u-0.43)/0.57);
@@ -56,7 +56,7 @@
     }
     case 'bell':{
       // Narrow shoulder at top, broad calm skirt below (no extra humps).
-      const v=smooth(u);
+      const v=smooth((u-0.18)/0.82);
       r=R+(o.topDiameter/2-R)*v;break;
     }
     case 'sphere':{
