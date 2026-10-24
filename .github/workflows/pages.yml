@@ -44,7 +44,7 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p _site/assets/stands _site/assets/shades
-          cp index.html app.js styles.css _site/
+          cp index.html app.js styles.css CREDITOS.md _site/
           cp assets/stands/wibble-stand.olmesh.gz _site/assets/stands/
           cp assets/stands/wibble-reference.webp _site/assets/stands/
           cp assets/stands/taller-stand.olmesh.gz _site/assets/stands/
@@ -54,6 +54,7 @@ jobs:
 
       - name: Verificar archivos de publicación
         run: |
+          test -s _site/CREDITOS.md
           test -s _site/index.html
           test -s _site/app.js
           test -s _site/styles.css
