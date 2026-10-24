@@ -18,7 +18,7 @@
   ['dome','Dome','◠',143,154,{}],
   ['bell','Bell','⌒',148,162,{topDiameter:91}],
   ['sphere','Sphere','○',155,158,{}],
-  ['pear','Pear','♧',160,153,{belly:0.58}],
+  ['pear','Pear','♧',160,153,{belly:0.34}],
   ['disc','Disc','═',100,177,{discDepth:0.30}],
  ];
  const presets=Object.freeze(defs.map(([shape,name,glyph,height,diameter,extra])=>Object.freeze({
@@ -36,7 +36,7 @@
      const v=Number(o.topDiameter);
      o.topDiameter=Number.isFinite(v)?clamp(v,80,Math.min(240,p.diameter)):defaults.basicOptions.topDiameter;
    }
-   if(shape==='pear')o.belly=clamp(Number.isFinite(Number(o.belly))?Number(o.belly):0.58,0.4,0.75);
+   if(shape==='pear')o.belly=clamp(Number.isFinite(Number(o.belly))?Number(o.belly):0.34,0.28,0.44);
    if(shape==='disc')o.discDepth=clamp(Number.isFinite(Number(o.discDepth))?Number(o.discDepth):0.30,0.2,0.5);
    return o;
  }
@@ -50,28 +50,40 @@
     case 'cylinder':r=R;break;
     case 'cone':r=R+(o.topDiameter/2-R)*clamp((u-0.18)/0.82,0,1);break;
     case 'dome':{
-      // Gentle upright cylinder transforming into a quarter-dome shoulder.
+      // A straight-sided drum ending in a continuous hemispherical shoulder.
+      // Unlike Sphere it has no lower taper, and unlike Bell no narrow waist.
       const v=smooth((u-0.43)/0.57);
-      r=R*(1-0.38*(1-Math.cos(Math.PI*v/2)));break;
+      r=R*Math.sqrt(1-0.71*v*v);break;
     }
     case 'bell':{
-      // Narrow shoulder at top, broad calm skirt below (no extra humps).
-      const v=smooth((u-0.18)/0.82);
-      r=R+(o.topDiameter/2-R)*v;break;
+      // A true bell has a slender neck with a pronounced flare near its lip.
+      // This nonlinear silhouette is NOT a cone with a different top width.
+      const q=clamp((u-0.18)/0.82,0,1);
+      const flare=Math.sqrt(smooth(q));
+      r=R+(o.topDiameter/2-R)*flare;break;
     }
     case 'sphere':{
-      // Cropped oval: both ends remain printable, open and nonzero-radius.
+      // Centered and vertically symmetric spherical section. Open cut ends.
       const q=2*u-1;
-      r=R*Math.sqrt(Math.max(0.35,1-0.57*q*q));break;
+      r=R*Math.sqrt(1-0.60*q*q);break;
     }
     case 'pear':{
+      // Teardrop grammar: broad lower belly and a genuinely narrow upper neck.
+      // Its maximum radius lies BELOW center; Sphere stays symmetric.
       const c=o.belly;
-      const q=(u-c)/(u<c?c:1-c);
-      r=R*(1-0.33*Math.pow(Math.abs(q),1.7));break;
+      r=u<=c
+        ? R*(0.76+0.24*smooth(u/c))
+        : R*(1-0.56*smooth((u-c)/(1-c)));
+      break;
     }
     case 'disc':{
-      const c=1-o.discDepth,spread=Math.max(0.1,o.discDepth);
-      r=R*(0.47+0.53*Math.exp(-Math.pow((u-c)/spread,2)));break;
+      // Narrow lower stem, wide shallow upper plate, then a short crown.
+      // The broad shelf is confined to the upper half, not a flattened Sphere.
+      const start=clamp(0.69-(o.discDepth-0.30)*0.50,0.58,0.77);
+      const shoulder=smooth((u-0.20)/(start-0.20));
+      const crown=smooth((u-(start+0.12))/(1-start-0.12));
+      r=R*(0.48+0.52*shoulder)*(1-0.31*crown);
+      break;
     }
     default:throw new Error('Forma básica desconocida');
    }
