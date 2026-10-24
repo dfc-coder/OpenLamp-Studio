@@ -29,12 +29,13 @@
   }
   // Verified means measured AND physically tested. A user-provided record ID alone
   // is not a verified safety certificate and must never elevate this status.
-  function evaluate({baseId,hardware,shadeValid=true,baseValid=true}={}){
+  function evaluate({baseId,hardware,shadeValid=true,baseValid=true,adapterGenerated=false}={}){
     const mount=interfaces[baseId]||null,h=sanitizeHardware(hardware);
     const blockers=[],warnings=[];
     if(!mount){blockers.push('Base desconocida');}
     if(!shadeValid||!baseValid)blockers.push('Una pieza no pasó la validación geométrica');
-    if(mount&&!mount.verifiedGeometry)blockers.push('No existe una interfaz de montaje verificada para esta base');
+    if(mount&&!mount.verifiedGeometry&&!adapterGenerated)blockers.push('No se generó un adaptador geométrico para esta base');
+    if(adapterGenerated)warnings.push('Adaptador de Wibble calculado desde la malla original: retención y tolerancias físicas pendientes');
     if(h.type==='none')blockers.push('No se seleccionó un kit de iluminación');
     if(h.type!=='none'){
       if(!h.sku)blockers.push('Falta fabricante/modelo del kit');
@@ -46,7 +47,7 @@
     if(h.type!=='none')warnings.push('El adaptador mecánico no está fabricado ni validado para este SKU');
     warnings.push('Seguridad eléctrica, térmica y estabilidad de la luminaria: no verificadas');
     return {
-      baseId,hardware:h,knownMount:!!mount?.verifiedGeometry,
+      baseId,hardware:h,knownMount:!!mount?.verifiedGeometry,adapterPrototype:!!adapterGenerated,
       nominalRadialClearanceMm:mount&&mount.verifiedGeometry?
         Number((mount.shadeInnerRadiusMm-mount.seatOuterRadiusMm).toFixed(3)):null,
       geometryStatus:shadeValid&&baseValid?'valid':'invalid',
