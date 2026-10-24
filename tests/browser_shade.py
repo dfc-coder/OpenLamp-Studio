@@ -74,7 +74,34 @@ def main():
                 project = json.loads(Path(d.value.path()).read_text())
                 assert project["version"] == 8
                 assert project["params"]["id"].startswith("basic_")
-                print("PASS browser: seven shapes, stages, dimensions, surface isolation, mounts, binary STL and JSON v8")
+                # Base-dependent adapter is a real geometry change, not a visual offset.
+                page.locator("button[data-step='base']").click()
+                page.locator(".base-preset[data-base='wibble']").click()
+                page.wait_for_function(
+                    "() => window.OpenLampBridge.getStatus().adapterGenerated && window.OpenLampBridge.getStatus().adapterValid",
+                    timeout=90000,
+                )
+                details = page.evaluate("() => window.OpenLampBridge.getShadeInterface().mount")
+                assert details["baseId"] == "wibble"
+                assert details["kind"] == "conformal-bridge"
+                assert details["adapterRequired"] is True
+                page.locator("button[data-step='make']").click()
+                assert page.locator("#download-adapter").is_enabled()
+                with page.expect_download() as dl:
+                    page.locator("#download-adapter").click()
+                adapter_data = Path(dl.value.path()).read_bytes()
+                adapter_triangles = struct.unpack_from("<I", adapter_data, 80)[0]
+                assert adapter_triangles > 1000
+                assert len(adapter_data) == 84 + 50*adapter_triangles
+                page.locator("button[data-step='base']").click()
+                page.locator(".base-preset[data-base='flat']").click()
+                page.wait_for_function(
+                    "() => window.OpenLampBridge.getStatus().baseId === 'flat' && !window.OpenLampBridge.getStatus().adapterGenerated",
+                    timeout=90000,
+                )
+                assert page.locator("#download-adapter").is_disabled()
+                assert page.evaluate("() => window.OpenLampBridge.getShadeInterface().mount.kind") == "direct"
+                print("PASS browser: seven shapes, CAD base joint switch, Wibble adapter STL, direct Taller restoration and JSON v8")
             finally:
                 browser.close()
     finally:
