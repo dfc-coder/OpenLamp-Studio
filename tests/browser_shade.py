@@ -70,6 +70,19 @@ def main() -> None:
                 page.locator("button[data-step='make']").click()
                 page.wait_for_selector("#ol-checklist")
                 assert page.locator("#ol-checklist").inner_text()
+                # Deterministic family-sheet previews (2D SVG; no claim of WebGL verification).
+                page.locator("button[data-step='shade']").click()
+                screenshots = ROOT / "artifacts" / "shade"
+                screenshots.mkdir(parents=True, exist_ok=True)
+                for family in ["original", "vertical", "soft", "flared"]:
+                    page.locator("#ol-family-select").select_option(family)
+                    page.wait_for_function(
+                        "(family) => window.OpenLampBridge.getProject().params.shadeDesign.family === family",
+                        arg=family,
+                    )
+                    page.locator(".ol-profile-editor").screenshot(
+                        path=str(screenshots / f"{family}-profile.png")
+                    )
                 print("PASS Browser Shade: 5 steps, family selection, surface isolation, reset, mount contract and Make.")
             finally:
                 browser.close()
