@@ -11,12 +11,14 @@
     petal: {label:'ABSTRACT CLASSIC',ribDepth:[0,1.2],ribCount:[10,26],twist:[-8,8]},
     calm: {label:'ABSTRACT MINIMAL',ribDepth:[0,0.9],ribCount:[14,34],twist:[-6,6]},
     atelier: {label:'ATELIER · PANTALLAS DE MESA',ribDepth:[0,0.6],ribCount:[0,32],twist:[-5,5]},
+    taller: {label:'TALLER · PARAMÉTRICA',ribDepth:[0,2],ribCount:[0,52],twist:[-10,10]},
   };
   const PRESETS = [
-    {id:'halo',name:'Halo',family:'atelier',glyph:'◒',height:120,diameter:238,thickness:1.6,ribDepth:0,ribCount:0,twist:0},
-    {id:'domo',name:'Domo',family:'atelier',glyph:'◠',height:128,diameter:220,thickness:1.6,ribDepth:0,ribCount:0,twist:0},
-    {id:'campana_atelier',name:'Campana',family:'atelier',glyph:'⌒',height:134,diameter:219,thickness:1.6,ribDepth:0,ribCount:0,twist:0},
-    {id:'tambor_atelier',name:'Tambor',family:'atelier',glyph:'▥',height:144,diameter:207,thickness:1.6,ribDepth:0.35,ribCount:28,twist:0},
+    {id:'taller_top',name:'Taller Top',family:'taller',glyph:'⌛',height:228,diameter:131.2,thickness:1.6,ribDepth:0.6,ribCount:40,twist:0,topMode:'open'},
+    {id:'halo',archived:true,name:'Halo',family:'atelier',glyph:'◒',height:120,diameter:238,thickness:1.6,ribDepth:0,ribCount:0,twist:0},
+    {id:'domo',archived:true,name:'Domo',family:'atelier',glyph:'◠',height:128,diameter:220,thickness:1.6,ribDepth:0,ribCount:0,twist:0},
+    {id:'campana_atelier',archived:true,name:'Campana',family:'atelier',glyph:'⌒',height:134,diameter:219,thickness:1.6,ribDepth:0,ribCount:0,twist:0},
+    {id:'tambor_atelier',archived:true,name:'Tambor',family:'atelier',glyph:'▥',height:144,diameter:207,thickness:1.6,ribDepth:0.35,ribCount:28,twist:0},
     {id:'globo',archived:true,name:'Globo',family:'soft',glyph:'◯',height:158,diameter:168,thickness:1.6,ribDepth:0.15,ribCount:10,twist:0},
     {id:'organica',archived:true,name:'Óvalo',family:'soft',glyph:'⬭',height:178,diameter:154,thickness:1.6,ribDepth:0.12,ribCount:12,twist:0},
     {id:'hongo',archived:true,name:'Hongo',family:'petal',glyph:'◠',height:132,diameter:188,thickness:1.8,ribDepth:0.45,ribCount:18,twist:0},
@@ -33,6 +35,7 @@
   // Classic lamp silhouettes defined by piecewise cubic Bézier curves.
   // Each segment is [p0, p1, p2, p3] in normalized [height, radiusFactor].
   const SHAPE_PROFILES = {
+    taller_top: {fullProfile:true,crownStart:1,curves:[[[0,0.9],[.33,.6],[.66,.6],[1,.9]]]},
     // Full-height cubic Bézier silhouettes, built for desktop lamps.
     // Mounting diameter is still fixed by the existing collar geometry.
     halo: {fullProfile:true,crownStart:0.78,curves:[
@@ -80,6 +83,23 @@
       [[0.56,0.80],[0.62,0.77],[0.67,0.74],[0.72,0.71]],
     ]},
   };
+  const TALLER_TOP_PROFILE=[
+    [0,65.599],[.03070,65.162],[.05702,64.776],[.08333,64.314],
+    [.11842,62.366],[.14474,59.174],[.17105,55.630],[.19737,52.245],
+    [.22368,49.188],[.25,46.203],[.27632,43.485],[.31140,40.531],
+    [.33772,38.702],[.36404,37.127],[.39035,35.989],[.41667,35.115],
+    [.44298,34.477],[.46930,34.056],[.49561,33.878],[.53070,34.018],
+    [.55702,34.383],[.58333,35.044],[.60965,35.980],[.63596,37.099],
+    [.66228,38.526],[.68860,40.370],[.72368,43.385],[.75,45.931],
+    [.77632,48.817],[.80263,51.954],[.82895,55.408],[.85526,58.848],
+    [.88158,61.955],[.91667,63.040],[.94298,63.008],[.96930,63.005],[1,65.599]
+  ];
+  const TALLER_TOP_ORIGINAL_HEIGHT=228.14266205;
+  const TALLER_TOP_ORIGINAL_DIAMETER=131.19818116;
+  const TALLER_MOUNT_INNER_RADIUS=35.04433221;
+  const TALLER_MOUNT_ZONE_HEIGHT=14.17264533;
+  const TALLER_MOUNT_FIXED_UNTIL=20;
+  const TALLER_TOP_MODES=['open','flat','curved'];
   const SHADE_SEGMENTS=128, SHADE_LEVELS=100, BASE_SEGMENTS=256, TAU=2*Math.PI;
   const OPENING_RADIUS=40; // inner opening radius in mm; fixed shared shade/base interface
   const BASE_HEIGHT=12, SEAT_HEIGHT=9, SEAT_WALL=4, HOLE_RADIUS=3.5;
@@ -90,7 +110,7 @@
     {id:'wibble',name:'Wibble Stand',author:'Abstractia Design',type:'mesh',height:199.37149,diameter:162.87946,asset:'assets/stands/wibble-stand.olmesh.gz',preview:'assets/stands/wibble-reference.webp',filename:'abstractia-wibble-original-stand.stl'},
   ];
   let state={...PRESETS[0],clearance:defaultClearance};
-  let selectedBase='wibble',standMeshes=new Map(),standPromises=new Map(),renderRequest=0;
+  let selectedBase='flat',standMeshes=new Map(),standPromises=new Map(),renderRequest=0;
   let meshes=null, reports=null, plotPrepared=false, pendingRender=0, viewMode='ensamblada';
   const byId=id=>document.getElementById(id);
   const clamp=(x,a,b)=>Math.max(a,Math.min(x,b));
@@ -116,6 +136,7 @@
       out[key]=legacy?value:clamp(value,minimum,maximum);
     }
     out.ribCount=Math.round(out.ribCount);
+    out.topMode=TALLER_TOP_MODES.includes(raw.topMode)?raw.topMode:(preset.topMode||'curved');
     return out;
   }
   function bezierPoint(segment,u){
@@ -150,6 +171,7 @@
     return y0+(y1-y0)*(t-x0)/(x1-x0||1);
   }
   function profile(t,id){
+    if(id==='taller_top')return interpolateSamples(TALLER_TOP_PROFILE,t)/(TALLER_TOP_ORIGINAL_DIAMETER/2);
     const spec=SHAPE_PROFILES[id];
     if(!spec)throw new Error('Perfil inválido');
     return interpolateSamples(spec.samples,spec.fullProfile?t:Math.min(t,spec.crownStart));
@@ -174,6 +196,7 @@
     return p.ribDepth*shape*baseEnvelope*familyFactor;
   }
   function outerRadius(t,theta,p){
+    if(p.id==='taller_top')return tallerOuterRadius(t,theta,p);
     // Mechanical socket is untouched: Ø80 mm inner aperture on the underside.
     const collar=OPENING_RADIUS+p.thickness;
     const body=(p.diameter/2)*profile(t,p.id);
@@ -190,7 +213,86 @@
   function createMesh(positions,indices){
     return {positions:Float32Array.from(positions),indices:Uint32Array.from(indices),triangleCount:indices.length/3,vertexCount:positions.length/3};
   }
+
+  // Mechanical mounting rim never scales with overall shade dimensions.
+  function tallerHeightAt(t,p,bodyHeight){
+    const threshold=TALLER_MOUNT_ZONE_HEIGHT/TALLER_TOP_ORIGINAL_HEIGHT;
+    if(t<=threshold)return t*TALLER_TOP_ORIGINAL_HEIGHT;
+    return TALLER_MOUNT_ZONE_HEIGHT+(bodyHeight-TALLER_MOUNT_ZONE_HEIGHT)*(t-threshold)/(1-threshold);
+  }
+  function tallerOuterRadius(t,theta,p){
+    const original=interpolateSamples(TALLER_TOP_PROFILE,t);
+    const sourceHeight=t*TALLER_TOP_ORIGINAL_HEIGHT;
+    const blend=smoothstep((sourceHeight-TALLER_MOUNT_FIXED_UNTIL)/35);
+    const scale=p.diameter/TALLER_TOP_ORIGINAL_DIAMETER;
+    const amplitude=p.ribDepth*smoothstep((sourceHeight-TALLER_MOUNT_FIXED_UNTIL)/30)*(1-smoothstep((t-.88)/.12));
+    const relief=p.ribCount>0?amplitude*.5*(1+Math.cos(theta*p.ribCount+p.twist*Math.PI/180*t)):0;
+    return original*(1+(scale-1)*blend)+relief;
+  }
+  function buildTallerShade(p){
+    const mode=TALLER_TOP_MODES.includes(p.topMode)?p.topMode:'open';
+    const N=SHADE_SEGMENTS,domeRise=mode==='curved'?Math.min(27,p.height*.17):0;
+    const bodyHeight=p.height-domeRise;
+    if(bodyHeight<=TALLER_MOUNT_FIXED_UNTIL+20)throw new Error('Altura insuficiente');
+    const rings=[];
+    for(let k=0;k<=SHADE_LEVELS;k++){
+      const t=k/SHADE_LEVELS;
+      rings.push({t,z:tallerHeightAt(t,p,bodyHeight)});
+    }
+    if(mode==='curved'){
+      const outerR=tallerOuterRadius(1,0,p);
+      for(let k=1;k<=18;k++){
+        const phi=k*Math.PI/2/19;
+        rings.push({t:1,cap:true,z:bodyHeight+domeRise*Math.sin(phi),capScale:Math.cos(phi),outerR});
+      }
+    }
+    const R=rings.length,I=[];
+    const out=(q,j)=>q*N+(j+N)%N,inn=(q,j)=>R*N+out(q,j);
+    const positions=new Float32Array((2*R*N+(mode==='open'?0:2))*3);
+    const place=(idx,r,theta,z)=>{
+      const at=3*idx;positions[at]=r*Math.cos(theta);positions[at+1]=r*Math.sin(theta);positions[at+2]=z;
+    };
+    for(let q=0;q<R;q++){
+      const ring=rings[q];
+      for(let j=0;j<N;j++){
+        const angle=j*TAU/N;
+        const outerR=ring.cap?ring.outerR*ring.capScale:tallerOuterRadius(ring.t,angle,p);
+        const innerR=q===0?TALLER_MOUNT_INNER_RADIUS:Math.max(.01,outerR-p.thickness);
+        const innerZ=mode!=='open'&&q===R-1?ring.z-p.thickness:ring.z;
+        place(out(q,j),outerR,angle,ring.z);
+        place(inn(q,j),innerR,angle,innerZ);
+      }
+    }
+    const tri=(a,b,c)=>I.push(a,b,c);
+    for(let q=0;q<R-1;q++)for(let j=0;j<N;j++){
+      const a=out(q,j),b=out(q,j+1),c=out(q+1,j),d=out(q+1,j+1);
+      tri(a,b,c);tri(b,d,c);
+      const ai=inn(q,j),bi=inn(q,j+1),ci=inn(q+1,j),di=inn(q+1,j+1);
+      tri(ai,ci,bi);tri(bi,ci,di);
+    }
+    for(let j=0;j<N;j++){
+      tri(out(0,j),inn(0,j),out(0,j+1));
+      tri(out(0,j+1),inn(0,j),inn(0,j+1));
+    }
+    if(mode==='open'){
+      const q=R-1;
+      for(let j=0;j<N;j++){
+        tri(out(q,j),out(q,j+1),inn(q,j));
+        tri(out(q,j+1),inn(q,j+1),inn(q,j));
+      }
+    }else{
+      const outerTip=R*N*2,innerTip=outerTip+1,q=R-1;
+      positions.set([0,0,p.height],outerTip*3);
+      positions.set([0,0,p.height-p.thickness],innerTip*3);
+      for(let j=0;j<N;j++){
+        tri(out(q,j),out(q,j+1),outerTip);
+        tri(inn(q,j),innerTip,inn(q,j+1));
+      }
+    }
+    return {positions,indices:Uint32Array.from(I),triangleCount:I.length/3,vertexCount:positions.length/3};
+  }
   function buildShade(p){
+    if(p.id==='taller_top')return buildTallerShade(p);
     const N=SHADE_SEGMENTS,L=SHADE_LEVELS,ringCount=L*N;
     const verts=new Float32Array((2*ringCount+2)*3),indices=[];
     const outer=(k,j)=>k*N+(j+N)%N;
@@ -268,6 +370,7 @@
   }
   function baseHeight(){return currentBasePreset().height;}
   function baseDiameter(){return currentBasePreset().diameter;}
+  function shadeElevation(){return baseHeight()-(selectedBase==='flat'&&state.id==='taller_top'?TALLER_MOUNT_ZONE_HEIGHT:0);}
   function channelBottom(r,theta){
     // Open underside radial cable channel: only a geometric provision, not rated strain relief.
     const x=r*Math.cos(theta),y=r*Math.sin(theta);
@@ -356,9 +459,9 @@
     const help=document.querySelector('.view-help');if(help)help.textContent='Vista lateral esquemática · Interacción 3D no disponible';
     const area=byId('viewer'),w=Math.max(400,area.clientWidth||800),h=Math.max(360,area.clientHeight||580);
     const maxR=Math.max(62,state.diameter*.51,state.diameter*.43,(baseDiameter()||0)/2);
-    const vertical=state.height+baseHeight()+(viewMode==='separada'?27:0);
+    const vertical=state.height+shadeElevation()+(viewMode==='separada'?27:0);
     const scale=Math.min((w-95)/(2*maxR),(h-85)/vertical);
-    const cx=w/2,ground=h-45,screenOffset=baseHeight()+(viewMode==='separada'?27:0);
+    const cx=w/2,ground=h-45,screenOffset=shadeElevation()+(viewMode==='separada'?27:0);
     const xx=r=>(cx+r*scale).toFixed(1), yy=z=>(ground-z*scale).toFixed(1);
     let outline=`M ${xx(0)} ${yy(screenOffset+state.height)}`;
     for(let k=99;k>=0;k--){const t=k/100;outline+=` L ${xx(outerRadius(t,0,state))} ${yy(screenOffset+t*state.height)}`;}
@@ -391,7 +494,7 @@
     let gl=false;try{const c=document.createElement('canvas');gl=Boolean(c.getContext('webgl')||c.getContext('webgl2'));}catch(e){gl=false;}
     if(!gl||typeof Plotly==='undefined')return fallback2D();
     const exploded=viewMode==='separada';
-    const traces=[makeTrace(all.base,'#bb765f'),makeTrace(all.shade,'#e7d6bc',baseHeight()+(exploded?27:0))];
+    const traces=[makeTrace(all.base,'#bb765f'),makeTrace(all.shade,'#e7d6bc',shadeElevation()+(exploded?27:0))];
     const layout={paper_bgcolor:'rgba(0,0,0,0)',plot_bgcolor:'rgba(0,0,0,0)',margin:{t:0,b:0,l:0,r:0},showlegend:false,uirevision:'orbit',
       scene:{xaxis:{visible:false},yaxis:{visible:false},zaxis:{visible:false},aspectmode:'data',camera:{eye:{x:1.4,y:1.7,z:1.13}},bgcolor:'rgba(0,0,0,0)'},dragmode:'turntable'};
     const opts={responsive:true,displaylogo:false,displayModeBar:false,scrollZoom:true};
@@ -424,6 +527,7 @@
     byId('current-name').textContent=preset.name;
     byId('current-family').textContent=FAMILY[preset.family].label;
     byId('curated-warning').hidden=!exceedsCurated(state);
+    byId('top-mode').value=state.topMode||'open';
     for(const el of document.querySelectorAll('.view-mode'))el.classList.toggle('active',el.dataset.view===viewMode);
   }
   async function render(){
@@ -437,7 +541,7 @@
       const shadeReport=validate(shade),baseReport=validate(base);
       const baseAccepted=baseReport.ok||(bp.experimental&&baseReport.finite&&baseReport.degenerate===0&&baseReport.volume>0);
       meshes={shade,base};reports={shade:shadeReport,base:baseReport,baseAccepted};
-      byId('s-height').textContent=`${Math.round(state.height+baseHeight())} mm`;
+      byId('s-height').textContent=`${Math.round(state.height+shadeElevation())} mm`;
       let maxR=0;for(let i=0;i<shade.positions.length;i+=3)maxR=Math.max(maxR,Math.hypot(shade.positions[i],shade.positions[i+1]));
       byId('s-diameter').textContent=`${Math.ceil(2*maxR)} mm`;
       byId('s-tris').textContent=(shade.triangleCount+base.triangleCount).toLocaleString('es-AR');
@@ -467,6 +571,7 @@
     for(const [key] of FIELDS)byId('in-'+key).addEventListener('input',e=>{
       state[key]=Number(e.target.value);refreshControls();timer();
     });
+    byId('top-mode').addEventListener('change',e=>{state.topMode=e.target.value;refreshControls();timer();});
     byId('advanced-design').addEventListener('change',refreshControls);
     byId('reset-design').addEventListener('click',()=>{state=suggestedParams(state.id);refreshControls();timer();});
     document.querySelectorAll('.view-mode').forEach(btn=>btn.addEventListener('click',()=>{viewMode=btn.dataset.view;refreshControls();if(meshes)plotMeshes(meshes).catch(console.warn);}));
@@ -475,11 +580,11 @@
       const name=currentBasePreset().filename;
       fileDownload(stlBinary(meshes.base),name,'model/stl');
     });
-    byId('save-json').addEventListener('click',()=>fileDownload(JSON.stringify({app:'openlamp-studio',version:3,params:state,baseId:selectedBase},null,2),`openlamp-${state.id}.json`,'application/json'));
+    byId('save-json').addEventListener('click',()=>fileDownload(JSON.stringify({app:'openlamp-studio',version:4,params:state,baseId:selectedBase},null,2),`openlamp-${state.id}.json`,'application/json'));
     byId('load-json').addEventListener('click',()=>byId('json-file').click());
     byId('json-file').addEventListener('change',async e=>{const file=e.target.files?.[0];if(!file)return;try{
       const data=JSON.parse(await file.text());
-      if(data.app!=='openlamp-studio'||![1,2,3].includes(data.version))throw new Error('Formato incompatible');
+      if(data.app!=='openlamp-studio'||![1,2,3,4].includes(data.version))throw new Error('Formato incompatible');
       state=sanitize(data.params,{legacy:data.version<3});
       selectedBase=BASE_PRESETS.some(p=>p.id===data.baseId)?data.baseId:'flat';
       if(exceedsCurated(state))byId('advanced-design').checked=true;
@@ -487,6 +592,6 @@
     }catch(err){alert('No se pudo abrir el proyecto: '+err.message);}finally{e.target.value='';}});
     refreshControls();render();
   }
-  window.OpenLampTest={buildShade,buildBase,parseStandMesh,validate,stlBinary,PRESETS,BASE_PRESETS,FAMILY,SHAPE_PROFILES,profile,outerRadius,surfaceDetail,fieldLimits,sanitize,OPENING_RADIUS,BASE_HEIGHT,SEAT_HEIGHT,defaultClearance,getState:()=>({...state}),getReport:()=>reports};
+  window.OpenLampTest={buildTallerShade,tallerOuterRadius,shadeElevation,TALLER_MOUNT_INNER_RADIUS,TALLER_MOUNT_ZONE_HEIGHT,TALLER_TOP_PROFILE,TALLER_TOP_ORIGINAL_HEIGHT,TALLER_TOP_ORIGINAL_DIAMETER,buildShade,buildBase,parseStandMesh,validate,stlBinary,PRESETS,BASE_PRESETS,FAMILY,SHAPE_PROFILES,profile,outerRadius,surfaceDetail,fieldLimits,sanitize,OPENING_RADIUS,BASE_HEIGHT,SEAT_HEIGHT,defaultClearance,getState:()=>({...state}),getReport:()=>reports};
   window.addEventListener('load',init);
 })();
