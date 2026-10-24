@@ -5,7 +5,7 @@
   const fields={
     cone:[['topDiameter','Diámetro superior',80,'diameter',1]],
     bell:[['topDiameter','Diámetro superior',80,'diameter',1]],
-    pear:[['belly','Posición del volumen',0.4,0.75,0.01]],
+    pear:[['belly','Altura del volumen principal',0.28,0.44,0.01]],
     disc:[['discDepth','Altura relativa del disco',0.2,0.5,0.01]]
   };
   function sync(){
@@ -45,13 +45,37 @@
     if(!pane||!controls||!window.OpenLampBasics)return;
     const section=document.createElement('div');section.id='ol-basic-options';section.className='ol-basic-options';
     controls.after(section);
-    for(const [name,glyph] of [['Torus','◎'],['Free Curve','∿']]){
-      const button=document.createElement('button');button.type='button';button.disabled=true;
-      button.className='preset ol-coming-soon';button.title='Disponible en una versión posterior';
-      const symbol=document.createElement('span');symbol.className='glyph';symbol.textContent=glyph;
-      const label=document.createElement('span');label.textContent=name;
-      const footer=document.createElement('small');footer.textContent='Próximamente';
-      button.append(symbol,label,footer);$('presets').append(button);
+    // Show the ACTUAL generated silhouettes, not approximate unicode icons.
+    const captions={
+      cylinder:'Recta',cone:'Tronco cónico',dome:'Cúpula alta',
+      bell:'Boca ancha',sphere:'Simétrica',pear:'Volumen inferior',
+      disc:'Plato superior'
+    };
+    const NS='http://www.w3.org/2000/svg';
+    for(const preset of window.OpenLampBasics.presets){
+      const button=pane.querySelector('.preset[data-id="'+preset.id+'"]');
+      if(!button)continue;
+      const glyph=button.querySelector('.glyph');
+      const svg=document.createElementNS(NS,'svg');
+      svg.setAttribute('viewBox','0 0 84 76');
+      svg.setAttribute('width','74');svg.setAttribute('height','69');
+      svg.setAttribute('role','img');svg.setAttribute('aria-label','Silueta de '+preset.name);
+      const count=56,left=[],right=[];
+      for(let i=0;i<=count;i++){
+        const t=i/count,r=window.OpenLampBasics.radiusAt(t,preset)/(preset.diameter/2);
+        const y=70-64*t;
+        right.push([42+Math.min(1.05,r)*31,y]);
+        left.push([42-Math.min(1.05,r)*31,y]);
+      }
+      const points=[...right,...left.reverse()];
+      const path=document.createElementNS(NS,'path');
+      path.setAttribute('d',points.map((p,i)=>(i?'L':'M')+p[0].toFixed(2)+' '+p[1].toFixed(2)).join(' ')+' Z');
+      path.setAttribute('fill','#e7e4da');path.setAttribute('stroke','#7b8b76');
+      path.setAttribute('stroke-width','1.65');path.setAttribute('stroke-linejoin','round');
+      svg.appendChild(path);glyph.replaceChildren(svg);
+      const caption=document.createElement('small');
+      caption.className='ol-shape-caption';caption.textContent=captions[window.OpenLampBasics.shapeFor(preset)];
+      button.appendChild(caption);
     }
     pane.querySelectorAll('.preset:not(:disabled)').forEach(btn=>btn.addEventListener('click',()=>queueMicrotask(sync)));
     pane.querySelector('#in-diameter')?.addEventListener('change',sync);
