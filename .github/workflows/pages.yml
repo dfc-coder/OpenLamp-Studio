@@ -33,6 +33,7 @@ jobs:
       - name: Verificar mallas, STL y compatibilidad
         run: |
           node tests/verify.cjs
+          node tests/taller_top.cjs
           node tests/stand.cjs
           node tests/taller_base.cjs
           node tests/export.cjs
