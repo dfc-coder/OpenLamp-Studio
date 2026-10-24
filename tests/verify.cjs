@@ -5,14 +5,14 @@ const ctx={window:{addEventListener:()=>{}},console,Math,Float32Array,Uint32Arra
 vm.runInNewContext(fs.readFileSync(__dirname+'/../app.js','utf8'),ctx,{filename:'app.js'});
 const o=ctx.window.OpenLampTest;
 assert.equal(o.PRESETS.filter(p=>!p.archived).length,1,'only Taller Top is visible');
-assert.equal(o.PRESETS.length,11,'preserve ten old IDs for JSON');
-assert.deepEqual([...new Set(o.PRESETS.map(p=>p.family))].sort(),['atelier','calm','petal','soft','taller']);
+assert.equal(o.PRESETS.length,12,'preserve ten old IDs for JSON');
+assert.deepEqual([...new Set(o.PRESETS.map(p=>p.family))].sort(),['atelier','calm','original','petal','soft','taller']);
 const extremes=[
   {...o.PRESETS.find(p=>p.id==='cilindrica'),height:80,diameter:110,thickness:3.5,ribDepth:1.8,ribCount:44,twist:15,clearance:0.2},
   {...o.PRESETS.find(p=>p.id==='petalo'),height:280,diameter:280,thickness:1.2,ribDepth:3.5,ribCount:14,twist:-20,clearance:0.8},
   {...o.PRESETS.find(p=>p.id==='hongo'),height:80,diameter:110,thickness:3.5,ribDepth:0,ribCount:6,twist:0,clearance:0.4},
 ];
-for(const p of o.PRESETS){
+for(const p of o.PRESETS.filter(p=>p.id!=='tallertop_original')){
   const f=o.FAMILY[p.family];
   for(const key of ['ribDepth','ribCount','twist']){
     assert(p[key]>=f[key][0]&&p[key]<=f[key][1],`${p.id} ${key} outside limits`);
@@ -38,7 +38,7 @@ for(const p of o.PRESETS){
     last=rad;
   }
 }
-const cases=[...o.PRESETS.map(p=>({...p,clearance:o.defaultClearance})),...extremes];
+const cases=[...o.PRESETS.filter(p=>p.id!=='tallertop_original').map(p=>({...p,clearance:o.defaultClearance})),...extremes];
 for(const p of cases){
   const shade=o.buildShade(p),base=o.buildBase(p);
   for(const [part,mesh] of [['pantalla',shade],['base',base]]){

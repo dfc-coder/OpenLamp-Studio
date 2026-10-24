@@ -34,6 +34,7 @@ jobs:
         run: |
           node tests/verify.cjs
           node tests/taller_top.cjs
+          node tests/original_top.cjs
           node tests/stand.cjs
           node tests/taller_base.cjs
           node tests/export.cjs
@@ -42,12 +43,13 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          mkdir -p _site/assets/stands
+          mkdir -p _site/assets/stands _site/assets/shades
           cp index.html app.js styles.css _site/
           cp assets/stands/wibble-stand.olmesh.gz _site/assets/stands/
           cp assets/stands/wibble-reference.webp _site/assets/stands/
           cp assets/stands/taller-stand.olmesh.gz _site/assets/stands/
           cp assets/stands/taller-stand-reference.png _site/assets/stands/
+          cp assets/shades/tallertop-original.olmesh.gz.part-* _site/assets/shades/
           touch _site/.nojekyll
 
       - name: Verificar archivos de publicación
@@ -57,6 +59,7 @@ jobs:
           test -s _site/styles.css
           test -s _site/assets/stands/wibble-stand.olmesh.gz
           test -s _site/assets/stands/wibble-reference.webp
+          test -s _site/assets/shades/tallertop-original.olmesh.gz.part-18
           test -s _site/assets/stands/taller-stand.olmesh.gz
           test -s _site/assets/stands/taller-stand-reference.png
           ! grep -q 'src="/app.js"' _site/index.html

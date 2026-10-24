@@ -1,3 +1,11 @@
+# Taller Top — OBJ original sin reinterpretación
+
+El único preset visible usa **342.396 vértices y 684.792 triángulos originales** de `tallertop.obj`. No aplica reconstrucción Bézier, suavizado, reducción ni deformaciones. Las coordenadas se almacenan como Float32 con desviación máxima numérica de 0,000000005 mm. Sus 19 partes gzip se recomponen con SHA-256.
+
+La posición del conjunto Taller Stand/Taller Top conserva su sistema CAD compartido. El acople físico no se considera verificado sin impresión real. Las variantes paramétricas previas quedan archivadas solo para proyectos JSON históricos: modificar altura, diámetro o tapa requiere una copia transformada y dejaría de ser el archivo exacto.
+
+---
+
 # OpenLamp Studio — Taller Top paramétrico (v0.5)
 
 Generador web de pantallas para lámparas de escritorio. **Solo Taller Top aparece en la galería**, reconstruida a partir del perfil radial del archivo `tallertop.obj` aportado por el usuario. Los diez presets antiguos quedan ocultos para mantener compatibilidad de lectura de proyectos JSON.

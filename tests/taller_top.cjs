@@ -3,7 +3,7 @@ const ctx={window:{addEventListener:()=>{}},console,Math,Float32Array,Uint32Arra
 vm.runInNewContext(fs.readFileSync(path.join(__dirname,'..','app.js'),'utf8'),ctx,{filename:'app.js'});
 const api=ctx.window.OpenLampTest;
 const shade=api.PRESETS.find(p=>p.id==='taller_top');
-assert(shade&&!shade.archived);
+assert(shade&&shade.archived);
 for(const mode of ['open','flat','curved'])for(const height of [160,228,300])for(const diameter of [110,131.2,210]){
  const p={...shade,topMode:mode,height,diameter,clearance:.4};
  const m=api.buildShade(p),v=api.validate(m);

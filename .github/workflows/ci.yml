@@ -19,6 +19,7 @@ jobs:
       - name: Validate geometry and binary STL
         run: node tests/verify.cjs
           node tests/taller_top.cjs
+          node tests/original_top.cjs
       - name: Validate optimized imported stand
         run: |
           node tests/stand.cjs
