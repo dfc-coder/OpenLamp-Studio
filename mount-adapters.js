@@ -10,6 +10,7 @@
 })(typeof window!=='undefined'?window:undefined,function(){
  'use strict';
  const TAU=2*Math.PI;
+ const SHADOW_GAP=0.9; // nominal visual joint separation, physical calibration pending
  const FLAT=Object.freeze({id:'flat',kind:'direct',seatOuterRadius:34.880,
    socketInnerRadius:35.044,insertion:14.17,contactClearance:0.164,
    verifiedCAD:true,verifiedPhysical:false});
@@ -76,7 +77,7 @@
  function bridgeParameters(standMesh){
    const analysis=topLobes(standMesh);
    return {id:'wibble',kind:'conformal-bridge',top:analysis.zTop,
-     plateTop:analysis.zTop+8,shadeBottom:analysis.zTop+8.30,
+     plateTop:analysis.zTop+8,shadeBottom:analysis.zTop+8+SHADOW_GAP,
      seatTop:analysis.zTop+8+WIBBLE.insertion,seatRadius:WIBBLE.seatOuterRadius,
      contactClearance:WIBBLE.contactClearance,tips:analysis.tips};
  }
@@ -144,7 +145,7 @@
  function mountFor(baseId,standMesh){
    const spec=profileFor(baseId);
    if(baseId==='flat')return {baseId,status:'cad-only',adapter:null,
-     shadeBottom:35.59607-spec.insertion,
+     shadeBottom:35.59607-spec.insertion+SHADOW_GAP,
      interface:{...spec}};
    let bridge=bridgeCache.get(standMesh);
    if(!bridge){bridge=buildWibbleBridge(standMesh);bridgeCache.set(standMesh,bridge);}
@@ -153,5 +154,5 @@
      bridgeProfile:bridge.profile,contactSites:bridge.contactSites};
  }
  return Object.freeze({profiles,profileFor,topLobes,bridgeParameters,
-   buildWibbleBridge,mountFor,upperSurfaceSampler});
+   buildWibbleBridge,mountFor,upperSurfaceSampler,SHADOW_GAP});
 });
