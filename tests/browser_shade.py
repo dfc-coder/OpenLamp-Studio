@@ -39,6 +39,7 @@ def main():
                 page.wait_for_function("() => window.OpenLampBridge?.getStatus().shadeValid === true", timeout=90000)
                 baseline = page.evaluate("() => window.OpenLampBridge.getShadeInterface().mount.innerRadiusMm")
                 assert abs(baseline - 35.044) < 0.002
+                assert page.evaluate("() => window.OpenLampBridge.getShadeInterface().mount.socketType") == "hidden-internal"
                 folder = ROOT / "artifacts" / "shade"
                 folder.mkdir(parents=True, exist_ok=True)
                 page.locator("#presets").screenshot(path=str(folder / "shape-gallery.png"))
@@ -72,7 +73,7 @@ def main():
                 with page.expect_download() as d:
                     page.locator("#save-json").click()
                 project = json.loads(Path(d.value.path()).read_text())
-                assert project["version"] == 8
+                assert project["version"] == 9
                 assert project["params"]["id"].startswith("basic_")
                 # Base-dependent adapter is a real geometry change, not a visual offset.
                 page.locator("button[data-step='base']").click()
@@ -85,6 +86,7 @@ def main():
                 assert details["baseId"] == "wibble"
                 assert details["kind"] == "conformal-bridge"
                 assert details["adapterRequired"] is True
+                assert details["socketType"] == "hidden-internal"
                 page.locator("button[data-step='make']").click()
                 assert page.locator("#download-adapter").is_enabled()
                 with page.expect_download() as dl:
