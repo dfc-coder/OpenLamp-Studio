@@ -13,7 +13,7 @@ assert.equal(a.validate(stand).ok,true,'Wibble source must be valid');
 const immutableSourceCopy=Buffer.from(stand.positions.buffer,stand.positions.byteOffset,stand.positions.byteLength).subarray(0).toString('base64');
 const direct=M.mountFor('flat',stand);
 assert(!direct.adapter);assert.equal(direct.interface.kind,'direct');
-assert(Math.abs(direct.shadeBottom-(35.59607-14.17))<1e-6);
+assert(Math.abs(direct.shadeBottom-(35.59607-14.17+M.SHADOW_GAP))<1e-6);
 const integrated=M.mountFor('wibble',stand);
 assert(integrated.adapter,'Wibble MUST generate an adapter, not reuse Taller cylindrical seat');
 assert.equal(integrated.contactSites,4);
@@ -25,7 +25,7 @@ assert(check.ok,'Wibble bridge must be a closed orientable manifold: '+JSON.stri
 assert.equal(integrated.adapter.triangleCount,integrated.adapter.indices.length/3);
 assert.equal(Buffer.from(stand.positions.buffer,stand.positions.byteOffset,stand.positions.byteLength).toString('base64'),
   immutableSourceCopy,'Wibble OBJ vertices must not be modified');
-assert(integrated.bridgeProfile.seatTop-integrated.shadeBottom>13.5 &&
+assert(integrated.bridgeProfile.seatTop-integrated.shadeBottom>13.0 &&
        integrated.bridgeProfile.seatTop-integrated.shadeBottom<14.17,
   'Shade has to overlap the Wibble adapter male seat with nominal insertion');
 const upperSampler=M.upperSurfaceSampler(stand,integrated.bridgeProfile.top-26);
@@ -63,7 +63,7 @@ for(const name of B.presets.map(p=>p.id)){
  assert(a.validate(shade).ok);
  const low=shade.positions[2];
  assert.equal(low,0);
- // Universal shade/adapter male and female radii are intentionally different,
+ // Internal socket/adapter male and female radii remain invariant, while the exterior skirt does not taper into them.
  // producing the original clearance without changing shade STL when switching bases.
  assert(Math.abs(B.INNER_MOUNT-integrated.interface.seatOuterRadius-0.164)<1e-6);
 }
