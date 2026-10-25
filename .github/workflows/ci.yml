@@ -34,6 +34,7 @@ jobs:
           node tests/shade-mesh.cjs
           node tests/basic-shade.cjs
           node tests/mount-adapters.cjs
+          node tests/hidden-socket.cjs
           node tests/compatibility.cjs
       - name: Validate optimized imported stand
         run: |
