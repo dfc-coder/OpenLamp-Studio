@@ -9,6 +9,7 @@
 })(typeof window!=='undefined'?window:undefined,function(){
  'use strict';
  const TAU=2*Math.PI,INNER_MOUNT=35.044,INSERTION=14.17;
+ const SOCKET_WALL=2.4, MIN_LIGAMENT=1.5, SOCKET_ROOF=20, SOCKET_UNDERSIDE=17;
  const SEGMENTS=128,LEVELS=96;
  const clamp=(x,a,b)=>Math.max(a,Math.min(b,x));
  const smooth=x=>{const t=clamp(x,0,1);return t*t*(3-2*t);};
@@ -40,8 +41,7 @@
    if(shape==='disc')o.discDepth=clamp(Number.isFinite(Number(o.discDepth))?Number(o.discDepth):0.30,0.2,0.5);
    return o;
  }
- // A fixed bottom collar, followed by a smooth transition to the design body.
- // The entire outer profile is sampled from the same radial equation.
+ // Pure visual silhouette. All mating geometry is generated INSIDE the shell.
  function radiusAt(t,p){
    const shape=shapeFor(p),o=optionsFor(p),R=p.diameter/2;
    const u=clamp(t,0,1);
@@ -87,16 +87,24 @@
     }
     default:throw new Error('Forma básica desconocida');
    }
-   // The inset lower interface cannot be scaled along with the silhouette.
-   const collar=INNER_MOUNT+p.thickness;
-   const transition=smooth(u/0.18);
-   return collar+(r-collar)*transition;
+   return r;
+ }
+ function minimumDiameter(p){
+   // A radial web must fit between the visual exterior and the concealed
+   // socket wall; neither the original stand nor the exterior gets squeezed.
+   const ratio={cylinder:1,cone:1,dome:1,bell:1,
+     sphere:Math.sqrt(0.4),pear:0.76,disc:0.48}[shapeFor(p)];
+   if(!ratio)return Infinity;
+   return 2*(INNER_MOUNT+SOCKET_WALL+p.thickness+MIN_LIGAMENT)/ratio;
  }
  function validateParams(p){
    const shape=shapeFor(p),errors=[];
    if(!validId(shape))errors.push('Forma desconocida');
    if(!Number.isFinite(p.height)||p.height<90||p.height>270)errors.push('Altura 90–270 mm');
    if(!Number.isFinite(p.diameter)||p.diameter<110||p.diameter>220)errors.push('Diámetro 110–220 mm');
+   if(Number.isFinite(p.diameter)&&Number.isFinite(p.thickness)&&
+     p.diameter<minimumDiameter(p)-0.0001)
+     errors.push('Diámetro insuficiente para alojar el encastre interior sin deformar la silueta (mínimo '+Math.ceil(minimumDiameter(p))+' mm)');
    if(!Number.isFinite(p.thickness)||p.thickness<1.2||p.thickness>3.5)errors.push('Pared 1,2–3,5 mm');
    if(shape==='cone'||shape==='bell'){
      const input=p.basicOptions?.topDiameter;
@@ -104,46 +112,87 @@
    }
    return {ok:errors.length===0,errors};
  }
- function build(p){
+ // Cross-section of ONE closed structural solid. In (radius,z) order:
+ // outer skirt ↑ outer shell ↑ upper rim ↓ inner upper shell,
+ // inward upper web → inner socket wall ↓ socket lower lip →
+ // outer socket wall ↑ underside web → lower inner shell ↓ lower rim.
+ // A single revolved connected shell means no unjoined overlapping cylinders.
+ function crossSection(p){
    const report=validateParams(p);if(!report.ok)throw new Error(report.errors.join('; '));
-   const N=SEGMENTS,L=LEVELS;
-   const positions=new Float32Array((2*L*N)*3),indices=new Uint32Array(12*N*(L-1)+12*N);
-   const ring=L*N;
-   const oidx=(k,j)=>k*N+(j+N)%N, iidx=(k,j)=>ring+oidx(k,j);
-   let cursor=0;
-   const tri=(a,b,c)=>{indices[cursor++]=a;indices[cursor++]=b;indices[cursor++]=c;};
+   const h=p.height,wall=p.thickness,steps=LEVELS,contour=[];
+   const push=(kind,z,r=null)=>contour.push({kind,z,r});
+   for(let k=0;k<steps;k++)push('outer',h*k/(steps-1));
+   push('inner',h);
+   for(let k=steps-2;k>=0;k--){
+     const z=h*k/(steps-1);if(z<=SOCKET_ROOF)break;
+     push('inner',z);
+   }
+   push('inner',SOCKET_ROOF);
+   // The two webs are 3 mm apart. The cylindrical socket is inside the
+   // visual silhouette and is open from below for the selected male seat.
+   push('plain',SOCKET_ROOF,INNER_MOUNT);
+   push('plain',0,INNER_MOUNT);
+   push('plain',0,INNER_MOUNT+SOCKET_WALL);
+   push('plain',SOCKET_UNDERSIDE,INNER_MOUNT+SOCKET_WALL);
+   push('inner',SOCKET_UNDERSIDE);
+   for(let k=steps-2;k>=0;k--){
+     const z=h*k/(steps-1);if(z>=SOCKET_UNDERSIDE)continue;
+     push('inner',z);
+   }
+   // The last ring is the shell's inner lip at z=0. Connecting it to the
+   // first exterior ring gives a closed, real bottom skirt.
+   return contour;
+ }
+ function build(p){
+   const sections=crossSection(p),N=SEGMENTS,h=p.height;
+   const R=INNER_MOUNT+SOCKET_WALL,material=p.thickness;
    const intensity=Number(p.surfaceIntensity??1);
    const ribs=Number.isFinite(intensity)&&intensity!==1?
      (intensity<1?0.55:1.15):0;
-   for(let k=0;k<L;k++){
-     const t=k/(L-1),z=p.height*t,outer=radiusAt(t,p);
-     const fade=smooth((t-0.2)/0.1)*(1-smooth((t-0.87)/0.13));
+   const positions=new Float32Array(sections.length*N*3);
+   const indices=new Uint32Array(sections.length*N*6);
+   const idx=(k,j)=>k*N+(j+N)%N;
+   const radiusFor=(section,a)=>{
+     if(section.kind==='plain')return section.r;
+     const t=section.z/h;
+     const fade=smooth((t-0.20)/0.10)*(1-smooth((t-0.87)/0.13));
+     const relief=ribs*fade*Math.pow((1+Math.cos(28*a))/2,2);
+     return radiusAt(t,p)+relief-(section.kind==='inner'?material:0);
+   };
+   for(let k=0;k<sections.length;k++)for(let j=0;j<N;j++){
+     const section=sections[k],a=TAU*j/N,r=radiusFor(section,a);
+     if(!Number.isFinite(r)||r<=0)throw new Error('Radio interior inválido');
+     const i=idx(k,j)*3;
+     positions[i]=r*Math.cos(a);positions[i+1]=r*Math.sin(a);positions[i+2]=section.z;
+   }
+   // With outer skirt -> upper profile -> inner socket -> lower lip order
+   // the profile runs CCW in (r,z); reverse orientation if volume is negative
+   // (the winding has to remain consistent over the complete cross-section).
+   let at=0;
+   for(let k=0;k<sections.length;k++){
+     const next=(k+1)%sections.length;
      for(let j=0;j<N;j++){
-       const a=TAU*j/N;
-       const detail=ribs*fade*Math.pow((1+Math.cos(28*a))/2,2);
-       // Symmetric offset of interior/exterior preserves radial wall width.
-       const r=outer+detail;
-       for(const [at,rad] of [[oidx(k,j),r],[iidx(k,j),r-p.thickness]]){
-         const i=at*3;positions[i]=rad*Math.cos(a);positions[i+1]=rad*Math.sin(a);positions[i+2]=z;
-       }
+       const nj=(j+1)%N,a=idx(k,j),b=idx(k,nj),c=idx(next,j),d=idx(next,nj);
+       indices[at++]=a;indices[at++]=c;indices[at++]=b;
+       indices[at++]=b;indices[at++]=c;indices[at++]=d;
      }
    }
-   for(let k=0;k<L-1;k++)for(let j=0;j<N;j++){
-     const a=oidx(k,j),b=oidx(k,j+1),c=oidx(k+1,j),d=oidx(k+1,j+1);
-     tri(a,b,c);tri(b,d,c);
-     const ia=iidx(k,j),ib=iidx(k,j+1),ic=iidx(k+1,j),id=iidx(k+1,j+1);
-     tri(ia,ic,ib);tri(ib,ic,id);
+   // Correct global winding if the cross-section's signed area is reversed.
+   // For toroidal revolutions this signed tetrahedron integral is exact enough
+   // to determine consistent outward orientation.
+   let signed=0;
+   for(let k=0;k<indices.length;k+=3){
+     const ai=3*indices[k],bi=3*indices[k+1],ci=3*indices[k+2];
+     const ax=positions[ai],ay=positions[ai+1],az=positions[ai+2];
+     const bx=positions[bi],by=positions[bi+1],bz=positions[bi+2];
+     const cx=positions[ci],cy=positions[ci+1],cz=positions[ci+2];
+     signed+=(ax*(by*cz-bz*cy)+ay*(bz*cx-bx*cz)+az*(bx*cy-by*cx))/6;
    }
-   for(let j=0;j<N;j++){
-     // Bottom and top annular end faces: open cavities and watertight walls.
-     tri(oidx(0,j),iidx(0,j),oidx(0,j+1));
-     tri(oidx(0,j+1),iidx(0,j),iidx(0,j+1));
-     tri(oidx(L-1,j),oidx(L-1,j+1),iidx(L-1,j));
-     tri(oidx(L-1,j+1),iidx(L-1,j+1),iidx(L-1,j));
+   if(signed<0)for(let i=0;i<indices.length;i+=3){
+     const tmp=indices[i+1];indices[i+1]=indices[i+2];indices[i+2]=tmp;
    }
-   if(cursor!==indices.length)throw new Error('Topology allocation mismatch');
-   return {positions,indices,vertexCount:2*L*N,triangleCount:indices.length/3};
+   return {positions,indices,vertexCount:sections.length*N,triangleCount:indices.length/3};
  }
  return Object.freeze({presets,shapeFor,validId,optionsFor,radiusAt,validateParams,build,
-  INNER_MOUNT,INSERTION,SEGMENTS,LEVELS});
+  INNER_MOUNT,INSERTION,SOCKET_WALL,SOCKET_ROOF,SOCKET_UNDERSIDE,MIN_LIGAMENT,minimumDiameter,crossSection,SEGMENTS,LEVELS});
 });
