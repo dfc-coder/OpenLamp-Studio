@@ -745,7 +745,7 @@
       const family=state.shadeDesign?.family||'original';
       const limits=window.OpenLampShade?.families[family];
       if(basic&&key==='height'){lo=90;hi=270;input.step='1';}
-      if(basic&&key==='diameter'){lo=110;hi=220;input.step='1';}
+      if(basic&&key==='diameter'){lo=Math.max(110,Math.ceil(window.OpenLampBasics.minimumDiameter(state)));hi=220;input.step='1';}
       if(exact&&key==='height'){lo=limits?limits.height[0]:195.142662;hi=limits?limits.height[1]:265.142662;input.step='1';}
       if(exact&&key==='diameter'){lo=limits?limits.diameter[0]:131.198182;hi=limits?limits.diameter[1]:175.198182;input.step='0.5';}
       input.min=lo;input.max=hi;input.value=state[key];
@@ -761,8 +761,8 @@
     const bp=currentBasePreset();
     byId('mount-warning').hidden=false;
     byId('mount-warning').textContent=bp.id==='flat'
-      ? 'Taller Stand: acople directo sobre el asiento CAD original, con 0,164 mm de holgura radial nominal. Requiere prueba de impresión.'
-      : 'Wibble Stand: se genera un acople independiente de cuatro apoyos según los lóbulos de su malla. No modifica el stand. Encastre y retención física sin certificar.';
+      ? 'Taller Stand: socket interno oculto bajo la pantalla, sin cuello exterior. Holgura CAD radial nominal de 0,164 mm; ajuste físico pendiente.'
+      : 'Wibble Stand: el asiento superior queda oculto en la pantalla; los cuatro apoyos exteriores pertenecen al adaptador. Encastre sin pruebas físicas.';
     byId('download-base').textContent='STL '+bp.name+' ↗';
     byId('current-name').textContent=exact&&!originalParameterState(state)?'Taller Top · Paramétrico':preset.name;
     byId('current-family').textContent=FAMILY[preset.family].label;
@@ -810,9 +810,9 @@
       byId('s-valid').textContent=shadeReport.ok&&baseAccepted?((2+Number(!!cap)+Number(!!adapter))+' sólidos ✓'):'Revisar';
       if(!shadeReport.ok||!baseAccepted)throw new Error('La geometría no superó la validación');
       byId('status').textContent=bp.id==='flat'
-        ? 'Taller: asiento CAD directo · holgura nominal 0,164 mm · prueba FDM pendiente'
+        ? 'Taller: unión interior oculta · línea de sombra nominal 0,9 mm · encastre FDM pendiente'
         : adapter
-          ? 'Wibble: acople de 4 apoyos generado según malla real · retención física sin verificar'
+          ? 'Wibble: asiento interior oculto + 4 apoyos CAD · retención sin verificar'
           : 'Wibble: encastre no verificado para este proyecto anterior';
       for(const id of ['download-shade','download-base'])byId(id).disabled=false;
       byId('download-cap').disabled=!cap;
@@ -838,7 +838,10 @@
     byId('controls').innerHTML=FIELDS.map(([key,label,unit,min,max,step])=>`<div class="control"><div class="control-head"><label for="in-${key}">${label}</label><output id="out-${key}"></output></div><input id="in-${key}" type="range" min="${min}" max="${max}" step="${step}" aria-label="${label}" /></div>`).join('');
     for(const [key] of FIELDS)byId('in-'+key).addEventListener('input',e=>{
       state[key]=Number(e.target.value);
-      if(window.OpenLampBasics?.shapeFor(state)&&key==='diameter'&&state.basicOptions?.topDiameter>state.diameter)state.basicOptions.topDiameter=state.diameter;
+      if(window.OpenLampBasics?.shapeFor(state)){
+        if(key==='thickness')state.diameter=Math.max(state.diameter,Math.ceil(window.OpenLampBasics.minimumDiameter(state)));
+        if(key==='diameter'&&state.basicOptions?.topDiameter>state.diameter)state.basicOptions.topDiameter=state.diameter;
+      }
       refreshControls();timer();
       if(key==='height'||key==='diameter')document.dispatchEvent(new Event('openlamp:shade-updated'));
     });
@@ -858,11 +861,11 @@
       const name=currentBasePreset().filename;
       fileDownload(stlBinary(meshes.base),name,'model/stl');
     });
-    byId('save-json').addEventListener('click',()=>fileDownload(JSON.stringify({app:'openlamp-studio',version:8,params:state,baseId:selectedBase},null,2),`openlamp-${state.id}.json`,'application/json'));
+    byId('save-json').addEventListener('click',()=>fileDownload(JSON.stringify({app:'openlamp-studio',version:9,params:state,baseId:selectedBase},null,2),`openlamp-${state.id}.json`,'application/json'));
     byId('load-json').addEventListener('click',()=>byId('json-file').click());
     byId('json-file').addEventListener('change',async e=>{const file=e.target.files?.[0];if(!file)return;try{
       const data=JSON.parse(await file.text());
-      if(data.app!=='openlamp-studio'||![1,2,3,4,5,6,7,8].includes(data.version))throw new Error('Formato incompatible');
+      if(data.app!=='openlamp-studio'||![1,2,3,4,5,6,7,8,9].includes(data.version))throw new Error('Formato incompatible');
       state=sanitize(data.params,{legacy:data.version<3});
       selectedBase=BASE_PRESETS.some(p=>p.id===data.baseId)?data.baseId:'flat';
       if(exceedsCurated(state))byId('advanced-design').checked=true;
@@ -906,7 +909,11 @@
         adapterGenerated:!!mountAssembly?.adapter,
         cadFitStatus:mountAssembly?.status||'unverified',
         innerRadiusMm:window.OpenLampBasics?.shapeFor(state)?window.OpenLampBasics.INNER_MOUNT:TALLER_MOUNT_INNER_RADIUS,
-        protectedHeightMm:window.OpenLampBasics?.shapeFor(state)?window.OpenLampBasics.INSERTION:20,
+        protectedHeightMm:window.OpenLampBasics?.shapeFor(state)?window.OpenLampBasics.SOCKET_ROOF:20,
+        socketType:window.OpenLampBasics?.shapeFor(state)?'hidden-internal':'legacy',
+        socketDepthMm:window.OpenLampBasics?.shapeFor(state)?window.OpenLampBasics.INSERTION:null,
+        socketWallMm:window.OpenLampBasics?.shapeFor(state)?window.OpenLampBasics.SOCKET_WALL:null,
+        shadowGapMm:mountAssembly?window.OpenLampMounts.SHADOW_GAP:null,
         fitStatus:'physical-test-required'},
       actualDimensions:lastShadeDimensions?{...lastShadeDimensions}:null,
       closure:state.topMode,geometryValid:!!reports?.shade?.ok,
