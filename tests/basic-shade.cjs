@@ -19,12 +19,24 @@ for(const p of B.presets){
     maxRadius=Math.max(maxRadius,Math.hypot(shade.positions[i],shade.positions[i+1]));
   assert(Math.abs(2*maxRadius-p.diameter)<1.2,
     p.id+' displayed/actual width mismatch '+(2*maxRadius).toFixed(2)+' vs '+p.diameter);
-  assert.equal(shade.triangleCount,4*B.SEGMENTS*B.LEVELS);
-  // All bottom INNER rim coordinates are unchanged in every silhouette.
+  assert.equal(shade.triangleCount,2*B.SEGMENTS*B.crossSection(p).length);
+  // The EXTERIOR lower edge must keep its literal design silhouette,
+  // while a separate internal wall receives the standardized male seat.
+  const rim=B.radiusAt(0,p);
   for(let j=0;j<B.SEGMENTS;j++){
-   const innerOffset=B.LEVELS*B.SEGMENTS*3+3*j;
-   assert(Math.abs(Math.hypot(shade.positions[innerOffset],shade.positions[innerOffset+1])-B.INNER_MOUNT)<.00001,p.id+' inner mount');
+    const i=3*j;
+    assert(Math.abs(Math.hypot(shade.positions[i],shade.positions[i+1])-rim)<.00001,
+      p.id+' may not grow an external neck');
   }
+  const sections=B.crossSection(p);
+  const bottomSocket=sections.findIndex(x=>x.kind==='plain'&&x.z===0&&x.r===B.INNER_MOUNT);
+  assert(bottomSocket>0);
+  for(let j=0;j<B.SEGMENTS;j++){
+    const i=3*(bottomSocket*B.SEGMENTS+j);
+    assert(Math.abs(Math.hypot(shade.positions[i],shade.positions[i+1])-B.INNER_MOUNT)<.00001,
+      p.id+' internal socket must be invariant');
+  }
+  assert(B.minimumDiameter(p)<=p.diameter);
   const p2={...p,topMode:mode};
   const cap=mode==='original'?null:a.buildTopCap(shade,p2.topMode);
   if(cap)assert(a.validate(cap).ok,'Invalid cap '+p.id+' '+mode);
@@ -37,6 +49,12 @@ for(const p of B.presets){
  const changed=B.build({...p,height:p.height+8,diameter:p.diameter+8});
  assert(a.validate(changed).ok,p.id+' changed geometry');
 }
+// Impossible socket/body wall configurations must fail rather than shrink the silhouette.
+for(const [shape,width] of [['sphere',110],['disc',140]]){
+ const original=B.presets.find(p=>p.id==='basic_'+shape);
+ assert(!B.validateParams({...original,diameter:width}).ok);
+}
+assert(B.validateParams(B.presets.find(p=>p.id==='basic_disc')).ok);
 // Design identities must be distinguishable even with identical dimensions.
 // Preset cards use exactly this same lathed radial profile.
 const common={height:170,diameter:160,thickness:1.8};
