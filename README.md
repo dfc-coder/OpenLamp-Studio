@@ -1,3 +1,13 @@
+# OpenLamp Studio v1.4 — Unión interna oculta
+
+Todas las pantallas básicas usan ahora una **envolvente exterior sin cuello** y un **socket hembra interno** unido a la malla. La base seleccionada determina la altura de montaje: Taller Stand recibe directamente la pantalla; Wibble conserva su adaptador de cuatro apoyos, cuyo asiento superior se aloja dentro del socket. Los originales de las bases no se modifican. El proyecto se guarda en JSON v9 y sigue abriendo versiones anteriores.
+
+Los diámetros incompatibles con el socket se rechazan o limitan; nunca se estrecha silenciosamente la silueta exterior. Las pruebas cubren las 14 combinaciones Shade/Base, STL manifold, encastre CAD nominal y navegación en Chromium. **La unión física aún requiere impresión, ensayo de retención, comprobación de tolerancias FDM y evaluación térmica.**
+
+Detalles técnicos: [Hidden Internal Socket](docs/HIDDEN_SOCKET_V1_4.md).
+
+---
+
 # OpenLamp Studio v1.3 — Base-dependent mechanical joints (CAD prototype)
 
 **Base now selects the physical joint.** Taller Stand uses its existing CAD seat directly (34.880-mm male radius; 35.044-mm shade socket; nominal 0.164-mm radial clearance and 14.17-mm insertion). Wibble Stand has no equivalent circular seat, so OpenLamp computes an additional 4-lobe conformal transition **from the unmodified Wibble 3D mesh**. This adapter is visible in the viewer, and Make supplies its own STL only when Wibble is selected. Switching back to Taller removes the adapter.
