@@ -744,7 +744,11 @@
       const family=state.shadeDesign?.family||'original';
       const limits=window.OpenLampShade?.families[family];
       if(basic&&key==='height'){lo=90;hi=270;input.step='1';}
-      if(basic&&key==='diameter'){lo=Math.max(110,Math.ceil(window.OpenLampBasics.minimumDiameter(state)));hi=220;input.step='1';}
+      if(basic&&key==='diameter'){
+        const activeMount=mountAssembly?.baseId===selectedBase?mountAssembly:null;
+        lo=Math.max(110,Math.ceil(window.OpenLampBasics.requiredDiameter(state,activeMount)));
+        hi=220;input.step='1';
+      }
       if(exact&&key==='height'){lo=limits?limits.height[0]:195.142662;hi=limits?limits.height[1]:265.142662;input.step='1';}
       if(exact&&key==='diameter'){lo=limits?limits.diameter[0]:131.198182;hi=limits?limits.diameter[1]:175.198182;input.step='0.5';}
       input.min=lo;input.max=hi;input.value=state[key];
@@ -759,9 +763,13 @@
     });
     const bp=currentBasePreset();
     byId('mount-warning').hidden=false;
+    const minW=basic&&mountAssembly?.baseId===selectedBase&&mountAssembly.integrated
+      ? Math.ceil(window.OpenLampBasics.requiredDiameter(state,mountAssembly)) : null;
     byId('mount-warning').textContent=bp.id==='flat'
-      ? 'Taller Stand: socket interno oculto bajo la pantalla, sin cuello exterior. Holgura CAD radial nominal de 0,164 mm; ajuste físico pendiente.'
-      : 'Wibble Stand: 4 cavidades internas siguen las coronas originales del OBJ, con separación CAD nominal. Sin adaptador ni repisa plana; verificar encastre y retención en impresión.';
+      ? 'Taller Stand: socket interno oculto, sin modificación de la silueta. Ajuste físico pendiente.'
+      : 'Wibble Stand: el borde inferior sigue la forma de las cuatro coronas originales, sin falda acampanada ni adaptador.'+
+        (minW?' Diámetro mínimo compatible: Ø'+minW+' mm.':'')+
+        ' Las medidas inviables se bloquean. Encastre físico pendiente.';
     byId('download-base').textContent='STL '+bp.name+' ↗';
     byId('current-name').textContent=exact&&!originalParameterState(state)?'Taller Top · Paramétrico':preset.name;
     byId('current-family').textContent=FAMILY[preset.family].label;
@@ -787,6 +795,15 @@
       if(requestId!==renderRequest)return;
       const mount=basic&&window.OpenLampMounts?
         window.OpenLampMounts.mountFor(bp.id,base):null;
+      if(basic&&mount?.integrated){
+        const fit=window.OpenLampBasics.fitForMount(state,mount);
+        if(!fit.ok)throw Error(fit.reason);
+        if(state.diameter!==fit.params.diameter){
+          state.diameter=fit.params.diameter;
+          // Unlike a hidden flare, the real required dimension is explicit.
+          mountAssembly=mount;refreshControls();
+        }
+      }
       // The base controls the INSIDE of Shade. Wibble does not generate a
       // third solid, bridge, connector or hidden export.
       const shade=exact?deformOriginalShade(await loadOriginalShade(),state):
@@ -810,16 +827,22 @@
       byId('s-valid').textContent=shadeReport.ok&&baseAccepted?((2+Number(!!cap))+' sólidos ✓'):'Revisar';
       if(!shadeReport.ok||!baseAccepted)throw new Error('La geometría no superó la validación');
       byId('status').textContent=bp.id==='flat'
-        ? 'Taller: socket cilíndrico interior · prueba FDM pendiente'
+        ? 'Taller: socket interior directo · prueba FDM pendiente'
         : mount?.integrated
-          ? 'Wibble: 4 cavidades internas modeladas según el OBJ · apoyo CAD sin ensayo físico'
+          ? 'Wibble: borde inferior y cavidades conformados según el OBJ · Ø'+Math.ceil(2*maxR)+' mm · prueba física pendiente'
           : 'Wibble: unión no verificada para este proyecto anterior';
       for(const id of ['download-shade','download-base'])byId(id).disabled=false;
       byId('download-cap').disabled=!cap;
       document.dispatchEvent(new CustomEvent('openlamp:rendered',
         {detail:{shadeValid:!!shadeReport.ok,baseValid:!!baseReport.ok,baseId:selectedBase,integratedMount:!!mount?.integrated}}));
       try{await plotMeshes(meshes);}catch(err){byId('status').textContent='STL preparados · No se pudo cargar el visor';console.warn(err);}
-    }catch(e){byId('status').textContent='Error: '+(e.message||e);byId('s-valid').textContent='Error';console.error(e);}
+    }catch(e){
+      byId('status').textContent='Combinación no válida: '+(e.message||e);
+      byId('s-valid').textContent='No compatible';
+      meshes=null;reports=null;
+      byId('viewer').replaceChildren();
+      console.error(e);
+    }
   }
   function init(){
     byId('base-presets').innerHTML=BASE_PRESETS.map(p=>
