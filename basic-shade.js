@@ -118,26 +118,44 @@
  // outer socket wall ↑ underside web → lower inner shell ↓ lower rim.
  // A single revolved connected shell means no unjoined overlapping cylinders.
  function visualRadiusAt(t,p,mount=null,theta=0){
-   const original=radiusAt(t,p),seat=mount?.integrated;
-   if(!seat)return original;
-   // A measured four-lobe FOOTPRINT instead of the previous circular bulge.
-   // At each angle the exterior clears Wibble's original high crowns;
-   // its upper portion smoothly returns to the chosen family silhouette.
-   const z=t*p.height;
-   const fade=1-smooth((z-seat.blendStartZ)/(seat.blendEndZ-seat.blendStartZ));
-   const required=Math.max(original,seat.innerShelfRadius+p.thickness+9,
-     seat.envelopeRadius(theta)+7);
-   return original+(required-original)*fade;
+   // Do not add a Wibble flare, collar or fabricated radial blending. A shape
+   // whose lower radius is insufficient must enlarge explicitly or be blocked.
+   return radiusAt(t,p);
+ }
+ function requiredDiameter(p,mount){
+   const seat=mount?.integrated;
+   if(!seat)return minimumDiameter(p);
+   const unit={...p,diameter:200};
+   const bottomFactor=radiusAt(0,unit)/100;
+   return Math.max(minimumDiameter(p),2*(seat.minExteriorRadius+p.thickness)/bottomFactor);
+ }
+ function fitForMount(p,mount){
+   const minimum=Math.ceil(requiredDiameter(p,mount));
+   return minimum>220?{ok:false,minimum,reason:'La forma necesita al menos Ø'+minimum+' mm para Wibble; máximo permitido Ø220 mm.'}:
+     {ok:true,minimum,params:{...p,diameter:Math.max(p.diameter,minimum)}};
+ }
+ function conformedLipZ(z,theta,seat){
+   if(!seat)return z;
+   const lip=seat.lipHeight(theta);
+   const transition=Math.max(52,2.5*lip);
+   return z+lip*(1-smooth(z/transition));
  }
  function saddleUndersideAt(r,theta,seat){
    const actual=seat.sampleTop(r,theta);
    if(actual===null)return seat.minContactZ;
-   // A negative of the ORIGINAL Wibble upper surface with a nominal vertical
-   // print clearance. The base and the shade have matching (x,y) coordinates.
    return Math.max(seat.minContactZ,actual+seat.contactClearance);
+ }
+ function matingUndersideAt(r,theta,fraction,seat){
+   const contact=saddleUndersideAt(r,theta,seat);
+   // Outer underside approaches the sculpted visible edge. The inner part
+   // stays source-conformal and continues to support all four real lobes.
+   const blend=smooth((fraction-0.82)/0.18);
+   return contact+(seat.lipHeight(theta)-contact)*blend;
  }
  function crossSection(p,mount=null){
    const report=validateParams(p);if(!report.ok)throw new Error(report.errors.join('; '));
+   if(mount?.integrated&&p.diameter+0.01<requiredDiameter(p,mount))
+     throw new Error('Diámetro insuficiente para Wibble: mínimo Ø'+Math.ceil(requiredDiameter(p,mount))+' mm. No se deformará la silueta.');
    const h=p.height,wall=p.thickness,steps=LEVELS,contour=[];
    const seat=mount?.integrated||null;
    const push=(kind,z,r=null)=>contour.push({kind,z,r});
@@ -158,7 +176,8 @@
        const fraction=k/seat.radialSamples;
        contour.push({kind:'saddle',fraction,z:seat.minContactZ});
      }
-     push('inner',0);
+     // Underside finishes at the real lower lip. A second inner ring
+     // at z=0 would make an obsolete planar skirt hang below the seam.
    }else{
      for(let k=steps-2;k>=0;k--){
        const z=h*k/(steps-1);if(z<=SOCKET_ROOF)break;
@@ -235,7 +254,10 @@
    for(let k=0;k<sections.length;k++)for(let j=0;j<N;j++){
      const section=sections[k],a=TAU*j/N,r=radiusFor(section,a);
      if(!Number.isFinite(r)||r<=0)throw new Error('Radio interior inválido');
-     const z=section.kind==='saddle'?saddleUndersideAt(r,a,seat):section.z;
+     const z=section.kind==='saddle'
+       ? matingUndersideAt(r,a,section.fraction,seat)
+       : (seat&&(section.kind==='outer'||section.kind==='inner')
+          ?conformedLipZ(section.z,a,seat):section.z);
      if(seat&&section.kind==='saddle'&&z>=seat.seatRoofZ-2)
        throw new Error('Wibble: espesor insuficiente sobre el asiento cóncavo');
      const i=idx(k,j)*3;
@@ -271,5 +293,5 @@
    return {positions,indices,vertexCount:sections.length*N,triangleCount:indices.length/3};
  }
  return Object.freeze({presets,shapeFor,validId,optionsFor,radiusAt,validateParams,build,
-  INNER_MOUNT,INSERTION,SOCKET_WALL,SOCKET_ROOF,SOCKET_UNDERSIDE,MIN_LIGAMENT,minimumDiameter,crossSection,visualRadiusAt,saddleUndersideAt,SEGMENTS,LEVELS});
+  INNER_MOUNT,INSERTION,SOCKET_WALL,SOCKET_ROOF,SOCKET_UNDERSIDE,MIN_LIGAMENT,minimumDiameter,requiredDiameter,fitForMount,conformedLipZ,matingUndersideAt,crossSection,visualRadiusAt,saddleUndersideAt,SEGMENTS,LEVELS});
 });
