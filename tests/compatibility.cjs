@@ -18,7 +18,14 @@ assert.equal(wibblePrototype.compatibleForProduction,false);
 assert.equal(wibblePrototype.assemblyExportAllowed,false);
 assert(wibblePrototype.warnings.some(x=>x.includes('retención')));
 
-assert(unknown.blockers.some(x=>x.includes('adaptador geométrico')));
+assert(unknown.blockers.some(x=>x.includes('interfaz de montaje')));
+const integrated=C.evaluate({baseId:'wibble',integratedMount:true,
+  hardware:{type:'led-low-voltage',sku:'dimensioned-prototype',diameterMm:30,heightMm:50,cableDiameterMm:4}});
+assert.equal(integrated.integratedPrototype,true);
+assert.equal(integrated.adapterPrototype,false);
+assert.equal(integrated.compatibleForProduction,false);
+assert.equal(integrated.assemblyExportAllowed,false);
+assert(integrated.warnings.some(x=>x.includes('apoyo interno')));
 const measured=C.evaluate({baseId:'flat',hardware:{type:'led-low-voltage',sku:'Test Example',diameterMm:30,heightMm:50,cableDiameterMm:4}});
 assert.equal(measured.status,'prototype');
 assert.equal(measured.compatibleForProduction,false);
@@ -30,7 +37,7 @@ const sanitized=C.sanitizeHardware({type:'led-low-voltage',sku:'X'.repeat(999),d
 assert.equal(sanitized.sku.length,120);
 assert.equal(sanitized.diameterMm,null);
 const html=fs.readFileSync(path.join(__dirname,'..','index.html'),'utf8');
-const scripts=['compatibility.js','app.js','wizard.js'].map(v=>html.indexOf('src="'+v+'"'));
+const scripts=['compatibility.js','app.js','wizard.js'].map(v=>html.indexOf('src="'+v));
 assert(scripts.every(v=>v>0)&&scripts[0]<scripts[1]&&scripts[1]<scripts[2]);
 const js=fs.readFileSync(path.join(__dirname,'..','wizard.js'),'utf8');
 for(const step of ["shade","bulb","base","surface","make"])
