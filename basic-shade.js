@@ -234,27 +234,42 @@
    const first=sections.findIndex(s=>s.kind==='saddle');
    if(first<0)return;
    const last=first+seat.radialSamples;
-   const corrections=new Float32Array(P.length/3),MIN_FACE_GAP=0.15;
+   const corrections=new Float32Array(P.length/3);
    const v=(k,j)=>k*N+(j+N)%N;
-   const verify=ids=>{
-     let x=0,y=0,z=0;
-     for(const id of ids){
-       const n=id*3;x+=P[n];y+=P[n+1];z+=P[n+2];
-     }
-     x/=ids.length;y/=ids.length;z/=ids.length;
-     const top=seat.sampleTop(Math.hypot(x,y),Math.atan2(y,x));
-     if(top===null||top<seat.minContactZ-3)return;
-     const missing=top+MIN_FACE_GAP-z;
-     if(missing>0)for(const id of ids)corrections[id]=Math.max(corrections[id],missing);
-   };
-   for(let k=first;k<last;k++)for(let j=0;j<N;j++){
-     const a=v(k,j),b=v(k,j+1),c=v(k+1,j),d=v(k+1,j+1);
-     verify([a,b]);verify([a,c]);verify([b,c]);verify([b,d]);verify([c,d]);
-     verify([a,c,b]);verify([b,c,d]);
+   // CGAL revealed micro-intersections invisible at triangle vertices and
+   // centroids. Sample the projected triangle interior, not just its borders.
+   const gap=seat.contactClearance+0.15;
+   const checks=[];
+   for(let i=0;i<=8;i++)for(let j=0;j<=8-i;j++){
+     const k=8-i-j;
+     if(i===8||j===8||k===8)continue;
+     checks.push([i/8,j/8,k/8]);
    }
-   for(let i=0;i<corrections.length;i++)if(corrections[i]){
-     P[i*3+2]+=corrections[i];
-     if(P[i*3+2]>=seat.seatRoofZ-2)throw Error('Wibble sin espesor mínimo en apoyo interior');
+   for(let pass=0;pass<5;pass++){
+     corrections.fill(0);
+     let worst=0;
+     for(let k=first;k<last;k++)for(let j=0;j<N;j++){
+       const a=v(k,j),b=v(k,j+1),c=v(k+1,j),d=v(k+1,j+1);
+       for(const ids of [[a,c,b],[b,c,d]]){
+         for(const [wa,wb,wc] of checks){
+           const [ia,ib,ic]=ids.map(i=>i*3);
+           const x=P[ia]*wa+P[ib]*wb+P[ic]*wc;
+           const y=P[ia+1]*wa+P[ib+1]*wb+P[ic+1]*wc;
+           const z=P[ia+2]*wa+P[ib+2]*wb+P[ic+2]*wc;
+           const top=seat.sampleTop(Math.hypot(x,y),Math.atan2(y,x));
+           if(top===null||top<seat.minContactZ-3)continue;
+           const missing=top+gap-z;
+           worst=Math.max(worst,missing);
+           if(missing>0)for(const id of ids)
+             corrections[id]=Math.max(corrections[id],missing);
+         }
+       }
+     }
+     if(worst<=0.01)break;
+     for(let i=0;i<corrections.length;i++)if(corrections[i]){
+       P[i*3+2]+=corrections[i];
+       if(P[i*3+2]>=seat.seatRoofZ-2)throw Error('Wibble sin espesor mínimo en apoyo interior');
+     }
    }
  }
  function build(p,mount=null){
