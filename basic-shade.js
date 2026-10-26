@@ -179,6 +179,37 @@
    // first exterior ring gives a closed, real bottom skirt.
    return contour;
  }
+ // A sampled vertex can be clear of Wibble while the straight STL facet
+ // BETWEEN two samples cuts through its true curved top. Compensate at
+ // diagonal, radial/angular edge midpoints and triangle centroids. Lift
+ // ONLY the inner saddle, never the exterior silhouette or original base.
+ function refineSaddleClearance(P,sections,seat,N){
+   const first=sections.findIndex(s=>s.kind==='saddle');
+   if(first<0)return;
+   const last=first+seat.radialSamples;
+   const corrections=new Float32Array(P.length/3),MIN_FACE_GAP=0.15;
+   const v=(k,j)=>k*N+(j+N)%N;
+   const verify=ids=>{
+     let x=0,y=0,z=0;
+     for(const id of ids){
+       const n=id*3;x+=P[n];y+=P[n+1];z+=P[n+2];
+     }
+     x/=ids.length;y/=ids.length;z/=ids.length;
+     const top=seat.sampleTop(Math.hypot(x,y),Math.atan2(y,x));
+     if(top===null||top<seat.minContactZ-3)return;
+     const missing=top+MIN_FACE_GAP-z;
+     if(missing>0)for(const id of ids)corrections[id]=Math.max(corrections[id],missing);
+   };
+   for(let k=first;k<last;k++)for(let j=0;j<N;j++){
+     const a=v(k,j),b=v(k,j+1),c=v(k+1,j),d=v(k+1,j+1);
+     verify([a,b]);verify([a,c]);verify([b,c]);verify([b,d]);verify([c,d]);
+     verify([a,c,b]);verify([b,c,d]);
+   }
+   for(let i=0;i<corrections.length;i++)if(corrections[i]){
+     P[i*3+2]+=corrections[i];
+     if(P[i*3+2]>=seat.seatRoofZ-2)throw Error('Wibble sin espesor mínimo en apoyo interior');
+   }
+ }
  function build(p,mount=null){
    const sections=crossSection(p,mount),seat=mount?.integrated||null;
    const N=seat?192:SEGMENTS,h=p.height;
@@ -210,6 +241,7 @@
      const i=idx(k,j)*3;
      positions[i]=r*Math.cos(a);positions[i+1]=r*Math.sin(a);positions[i+2]=z;
    }
+   if(seat)refineSaddleClearance(positions,sections,seat,N);
    // With outer skirt -> upper profile -> inner socket -> lower lip order
    // the profile runs CCW in (r,z); reverse orientation if volume is negative
    // (the winding has to remain consistent over the complete cross-section).
