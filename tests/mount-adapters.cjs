@@ -16,7 +16,7 @@ assert.equal(wibble.interface.kind,'integrated-saddle');
 assert.equal(wibble.contactSites,4);
 assert.equal(wibble.integrated.tipRadii.length,4);
 assert(wibble.shadeBottom>190&&wibble.shadeBottom<210);
-assert.equal(wibble.integrated.contactUndersideZ-wibble.integrated.skirtDrop,M.WIBBLE_CONTACT_GAP);
+assert(Math.abs((wibble.integrated.contactUndersideZ-wibble.integrated.skirtDrop)-M.WIBBLE_CONTACT_GAP)<1e-8);
 assert.equal(wibble.integrated.contactTopZ-wibble.integrated.contactUndersideZ,3.5);
 assert.strictEqual(M.mountFor('wibble',stand),wibble,'Indexed Wibble geometry must be cached');
 const source=M.topLobes(stand),sample=M.upperSurfaceSampler(stand,source.zTop-26);
