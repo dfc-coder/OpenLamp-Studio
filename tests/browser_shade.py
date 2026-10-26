@@ -88,10 +88,34 @@ def main():
                 assert details["adapterRequired"] is False
                 assert details["socketType"] == "wibble-integrated-saddle"
                 assert page.locator("#download-adapter").count() == 0
-                assert page.locator("#presets .preset[data-id='basic_cylinder']").is_enabled()
-                assert page.locator("#presets .preset[data-id='basic_sphere']").is_disabled()
-                assert page.locator("#presets .preset[data-id='basic_disc']").is_disabled()
+                for name in ["cylinder", "cone", "dome", "bell", "sphere", "pear", "disc"]:
+                    assert page.locator(f"#presets .preset[data-id='basic_{name}']").is_enabled(), name
                 assert "Diámetro mínimo" in page.locator("#mount-warning").inner_text()
+                page.locator("button[data-step='shade']").click()
+                for name in ["sphere", "disc"]:
+                    page.locator(f"#presets .preset[data-id='basic_{name}']").click()
+                    page.wait_for_function(
+                        "(shape) => window.OpenLampBridge.getProject().params.id === 'basic_'+shape && window.OpenLampBridge.getStatus().shadeValid",
+                        arg=name, timeout=90000,
+                    )
+                    params = page.evaluate("() => window.OpenLampBridge.getProject().params")
+                    assert params["diameter"] <= (300 if name == "sphere" else 250)
+                    assert params["diameter"] >= 190
+                    assert page.locator("#download-shade").is_enabled(), name
+                    if name == "sphere":
+                        exact = page.evaluate("""() => {
+                            const p=window.OpenLampBridge.getProject().params,B=window.OpenLampBasics;
+                            return [0,0.25,0.5,0.75,1].every(t=>{
+                                const r=B.radiusAt(t,p),z=(t-0.5)*p.height;
+                                return Math.abs(r*r+z*z-(p.diameter/2)**2)<1e-6;
+                            });
+                        }""")
+                        assert exact, "Sphere must remain mathematically spherical"
+                page.locator("#presets .preset[data-id='basic_cone']").click()
+                page.wait_for_function(
+                    "() => window.OpenLampBridge.getProject().params.id === 'basic_cone' && window.OpenLampBridge.getStatus().shadeValid",
+                    timeout=90000,
+                )
                 page.locator("button[data-step='make']").click()
                 assert "Wibble" in page.locator("#ol-checklist").inner_text()
                 with page.expect_download() as dl:
