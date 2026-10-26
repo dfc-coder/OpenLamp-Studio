@@ -47,7 +47,7 @@ for(const p of B.presets){
  }
  const sec=wCross.findIndex(x=>x.kind==='saddle');
  const zValues=[];
- for(let j=0;j<192;j++)zValues.push(integrated.positions[(sec+7)*192*3+j*3+2]);
+ for(let j=0;j<192;j++)zValues.push(integrated.positions[(sec+8)*192*3+j*3+2]);
  assert(Math.max(...zValues)-Math.min(...zValues)>0.7,'Contact cannot be a flat ring');
  assert(mounts.flat.adapter===null&&mounts.wibble.adapter===null);
  checked+=2;
