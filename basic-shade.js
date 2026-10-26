@@ -80,11 +80,13 @@
       break;
     }
     case 'disc':{
-      // Wide, genuinely low disc/lens: NO skinny pedestal beneath it.
-      // The contact section is 84% of the maximum radius, so a compact
-      // desktop disc can sit directly over Wibble's four upper crowns.
-      const pwr=clamp(o.discDepth*3,0.65,1.45);
-      r=R*(0.84+0.16*Math.pow(Math.max(0,Math.sin(Math.PI*u)),pwr));
+      // Shallow upper platter above a broad cylindrical lower section.
+      // Unlike Sphere this has a distinct upper shoulder rather than an
+      // almost identical symmetrical bulge. It has NO skinny lower stalk.
+      const start=clamp(0.56-o.discDepth*0.15,0.45,0.60);
+      const shoulder=clamp(o.discDepth*0.55,0.12,0.28);
+      r=R*(0.84+0.16*smooth((u-start)/shoulder))*
+        (1-0.06*smooth((u-.90)/.10));
       break;
     }
     default:throw new Error('Forma básica desconocida');
