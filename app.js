@@ -747,7 +747,7 @@
       if(basic&&key==='diameter'){
         const activeMount=mountAssembly?.baseId===selectedBase?mountAssembly:null;
         lo=Math.max(110,Math.ceil(window.OpenLampBasics.requiredDiameter(state,activeMount)));
-        hi=220;input.step='1';
+        hi=window.OpenLampBasics.maxDiameter(state);input.step='1';
       }
       if(exact&&key==='height'){lo=limits?limits.height[0]:195.142662;hi=limits?limits.height[1]:265.142662;input.step='1';}
       if(exact&&key==='diameter'){lo=limits?limits.diameter[0]:131.198182;hi=limits?limits.diameter[1]:175.198182;input.step='0.5';}
