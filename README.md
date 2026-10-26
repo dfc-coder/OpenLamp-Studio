@@ -1,3 +1,15 @@
+# OpenLamp Studio v1.5 — Wibble sin pieza verde
+
+En Wibble eliminamos por completo el adaptador independiente. La pantalla ahora integra directamente un **apoyo anular interno** dimensionado a partir de los cuatro extremos superiores del stand original, con una **transición inferior suave** que ensancha lo necesario para alojarlos y vuelve a la silueta elegida más arriba. En el visor y en Make se entregan **solo dos sólidos: Shade y Base** (más una tapa opcional, si la seleccionás). Al cambiar a Taller, se restaura el encastre cilíndrico original, sin alterar su geometría.
+
+Las siete formas mantienen sus identidades y solo la parte inferior de Wibble adopta esta transición para ocultar el apoyo. El stand Wibble original permanece intacto. Las pruebas automatizadas verifican las 14 combinaciones, geometría manifold, referencias a los cuatro extremos reales y cambio de base con STL diferentes.
+
+**Estado:** prototipo CAD, sin ensayos de encastre real, estabilidad o seguridad eléctrica y térmica. La retención mecánica todavía no está certificada.
+
+[Especificación técnica v1.5](docs/WIBBLE_INTEGRATED_V1_5.md). Las secciones v1.4/v1.3 más abajo son **historial anterior, ya sustituido para Wibble**.
+
+---
+
 # OpenLamp Studio v1.4 — Unión interna oculta
 
 Todas las pantallas básicas usan ahora una **envolvente exterior sin cuello** y un **socket hembra interno** unido a la malla. La base seleccionada determina la altura de montaje: Taller Stand recibe directamente la pantalla; Wibble conserva su adaptador de cuatro apoyos, cuyo asiento superior se aloja dentro del socket. Los originales de las bases no se modifican. El proyecto se guarda en JSON v9 y sigue abriendo versiones anteriores.
