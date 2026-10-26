@@ -117,34 +117,60 @@
  // inward upper web → inner socket wall ↓ socket lower lip →
  // outer socket wall ↑ underside web → lower inner shell ↓ lower rim.
  // A single revolved connected shell means no unjoined overlapping cylinders.
- function crossSection(p){
+ function visualRadiusAt(t,p,mount=null){
+   const original=radiusAt(t,p),seat=mount?.integrated;
+   if(!seat)return original;
+   // Base-specific ergonomic transition: broad only at the Wibble crown.
+   // The original chosen silhouette is preserved above the blend interval.
+   const z=t*p.height;
+   const fade=1-smooth((z-seat.blendStartZ)/(seat.blendEndZ-seat.blendStartZ));
+   return original+(Math.max(original,seat.requiredExteriorRadius)-original)*fade;
+ }
+ function crossSection(p,mount=null){
    const report=validateParams(p);if(!report.ok)throw new Error(report.errors.join('; '));
    const h=p.height,wall=p.thickness,steps=LEVELS,contour=[];
+   const seat=mount?.integrated||null;
    const push=(kind,z,r=null)=>contour.push({kind,z,r});
    for(let k=0;k<steps;k++)push('outer',h*k/(steps-1));
    push('inner',h);
-   for(let k=steps-2;k>=0;k--){
-     const z=h*k/(steps-1);if(z<=SOCKET_ROOF)break;
-     push('inner',z);
-   }
-   push('inner',SOCKET_ROOF);
-   // The two webs are 3 mm apart. The cylindrical socket is inside the
-   // visual silhouette and is open from below for the selected male seat.
-   push('plain',SOCKET_ROOF,INNER_MOUNT);
-   push('plain',0,INNER_MOUNT);
-   push('plain',0,INNER_MOUNT+SOCKET_WALL);
-   push('plain',SOCKET_UNDERSIDE,INNER_MOUNT+SOCKET_WALL);
-   push('inner',SOCKET_UNDERSIDE);
-   for(let k=steps-2;k>=0;k--){
-     const z=h*k/(steps-1);if(z>=SOCKET_UNDERSIDE)continue;
-     push('inner',z);
+   if(seat){
+     // A SINGLE screen mesh: its inside includes a four-tip-compatible
+     // annular landing shelf. It is not a removable adapter or extra solid.
+     const roof=seat.contactTopZ,underside=seat.contactUndersideZ;
+     for(let k=steps-2;k>=0;k--){
+       const z=h*k/(steps-1);if(z<=roof)break;
+       push('inner',z);
+     }
+     push('inner',roof);
+     push('plain',roof,seat.innerShelfRadius);
+     push('plain',underside,seat.innerShelfRadius);
+     push('inner',underside);
+     for(let k=steps-2;k>=0;k--){
+       const z=h*k/(steps-1);if(z>=underside)continue;
+       push('inner',z);
+     }
+   }else{
+     for(let k=steps-2;k>=0;k--){
+       const z=h*k/(steps-1);if(z<=SOCKET_ROOF)break;
+       push('inner',z);
+     }
+     push('inner',SOCKET_ROOF);
+     push('plain',SOCKET_ROOF,INNER_MOUNT);
+     push('plain',0,INNER_MOUNT);
+     push('plain',0,INNER_MOUNT+SOCKET_WALL);
+     push('plain',SOCKET_UNDERSIDE,INNER_MOUNT+SOCKET_WALL);
+     push('inner',SOCKET_UNDERSIDE);
+     for(let k=steps-2;k>=0;k--){
+       const z=h*k/(steps-1);if(z>=SOCKET_UNDERSIDE)continue;
+       push('inner',z);
+     }
    }
    // The last ring is the shell's inner lip at z=0. Connecting it to the
    // first exterior ring gives a closed, real bottom skirt.
    return contour;
  }
- function build(p){
-   const sections=crossSection(p),N=SEGMENTS,h=p.height;
+ function build(p,mount=null){
+   const sections=crossSection(p,mount),N=SEGMENTS,h=p.height;
    const R=INNER_MOUNT+SOCKET_WALL,material=p.thickness;
    const intensity=Number(p.surfaceIntensity??1);
    const ribs=Number.isFinite(intensity)&&intensity!==1?
@@ -157,7 +183,7 @@
      const t=section.z/h;
      const fade=smooth((t-0.20)/0.10)*(1-smooth((t-0.87)/0.13));
      const relief=ribs*fade*Math.pow((1+Math.cos(28*a))/2,2);
-     return radiusAt(t,p)+relief-(section.kind==='inner'?material:0);
+     return visualRadiusAt(t,p,mount)+relief-(section.kind==='inner'?material:0);
    };
    for(let k=0;k<sections.length;k++)for(let j=0;j<N;j++){
      const section=sections[k],a=TAU*j/N,r=radiusFor(section,a);
@@ -194,5 +220,5 @@
    return {positions,indices,vertexCount:sections.length*N,triangleCount:indices.length/3};
  }
  return Object.freeze({presets,shapeFor,validId,optionsFor,radiusAt,validateParams,build,
-  INNER_MOUNT,INSERTION,SOCKET_WALL,SOCKET_ROOF,SOCKET_UNDERSIDE,MIN_LIGAMENT,minimumDiameter,crossSection,SEGMENTS,LEVELS});
+  INNER_MOUNT,INSERTION,SOCKET_WALL,SOCKET_ROOF,SOCKET_UNDERSIDE,MIN_LIGAMENT,minimumDiameter,crossSection,visualRadiusAt,SEGMENTS,LEVELS});
 });
