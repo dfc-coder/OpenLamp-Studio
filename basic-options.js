@@ -6,7 +6,7 @@
     cone:[['topDiameter','Diámetro superior',80,'diameter',1]],
     bell:[['topDiameter','Diámetro superior',80,'diameter',1]],
     pear:[['belly','Altura del volumen principal',0.28,0.44,0.01]],
-    disc:[['discDepth','Altura relativa del disco',0.2,0.5,0.01]]
+    disc:[['discDepth','Curvatura del canto',0.2,0.5,0.01]]
   };
   function sync(){
     const data=window.OpenLampBridge?.getProject(),B=window.OpenLampBasics,slot=$('ol-basic-options');
@@ -49,7 +49,7 @@
     const captions={
       cylinder:'Recta',cone:'Tronco cónico',dome:'Cúpula alta',
       bell:'Boca ancha',sphere:'Simétrica',pear:'Volumen inferior',
-      disc:'Plato superior'
+      disc:'Disco lenticular'
     };
     const NS='http://www.w3.org/2000/svg';
     for(const preset of window.OpenLampBasics.presets){
