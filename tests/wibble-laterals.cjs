@@ -34,7 +34,7 @@ for(const degrees of [0,45,90,135]){
  for(let k=0;k<L;k++)right.push(proj(v(k,jRight)));
  for(let k=L-1;k>=0;k--)left.push(proj(v(k,jLeft)));
  const minX=-110,maxX=110,minZ=-5,maxZ=mount.shadeBottom+p.height+7;
- const scale=2.4,X=x=>330+x*scale,Y=z=>590-z*scale;
+ const scale=1.52,X=x=>330+x*scale,Y=z=>584-z*scale;
  const pathPoints=ps=>ps.map((a,i)=>(i?'L':'M')+format(X(a[0]))+' '+format(Y(a[1]))).join(' ');
  const baseTop=new Array(74).fill(-Infinity),baseBottom=new Array(74).fill(Infinity);
  for(let i=0;i<base.positions.length;i+=3){
@@ -46,10 +46,16 @@ for(const degrees of [0,45,90,135]){
  for(let i=0;i<74;i++)if(Number.isFinite(baseTop[i]))
    outline.push([((i+.5)/74*166-83),baseTop[i]]);
  const basePath=pathPoints(outline);
+ const dots=[];
+ for(let i=0;i<base.positions.length;i+=60){
+   const [x,z]=proj([base.positions[i],base.positions[i+1],base.positions[i+2]]);
+   dots.push('<circle cx="'+format(X(x))+'" cy="'+format(Y(z))+'" r="0.75" fill="#ad725e" opacity=".35"/>');
+ }
  const screen=`<svg xmlns="http://www.w3.org/2000/svg" width="660" height="620" viewBox="0 0 660 620">
  <rect width="660" height="620" fill="#f5f3ec"/>
  <text x="24" y="30" font-family="sans-serif" font-size="18" fill="#354637">Cylinder + Wibble · lateral ${degrees}°</text>
- <path d="${basePath}" fill="none" stroke="#a76553" stroke-width="3"/>
+ ${dots.join("")}
+ <path d="${basePath}" fill="none" stroke="#a76553" stroke-width="2"/>
  <path d="${pathPoints(right.concat(left))}Z" fill="#e5d3b3" fill-opacity=".66" stroke="#807256" stroke-width="2"/>
  <path d="${pathPoints([right[0],left[left.length-1]])}" stroke="none"/>
  <line x1="${X(-100)}" y1="${Y(source.zTop)}" x2="${X(100)}" y2="${Y(source.zTop)}" stroke="#aaaaa0" stroke-dasharray="4 5" opacity=".55"/>
