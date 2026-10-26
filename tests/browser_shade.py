@@ -75,35 +75,40 @@ def main():
                 project = json.loads(Path(d.value.path()).read_text())
                 assert project["version"] == 9
                 assert project["params"]["id"].startswith("basic_")
-                # Base-dependent adapter is a real geometry change, not a visual offset.
+                # Switching to Wibble must change SHADE geometry, not add green solid.
                 page.locator("button[data-step='base']").click()
                 page.locator(".base-preset[data-base='wibble']").click()
                 page.wait_for_function(
-                    "() => window.OpenLampBridge.getStatus().adapterGenerated && window.OpenLampBridge.getStatus().adapterValid",
+                    "() => window.OpenLampBridge.getStatus().integratedMount && window.OpenLampBridge.getStatus().shadeValid",
                     timeout=90000,
                 )
                 details = page.evaluate("() => window.OpenLampBridge.getShadeInterface().mount")
                 assert details["baseId"] == "wibble"
-                assert details["kind"] == "conformal-bridge"
-                assert details["adapterRequired"] is True
-                assert details["socketType"] == "hidden-internal"
+                assert details["kind"] == "integrated-saddle"
+                assert details["adapterRequired"] is False
+                assert details["socketType"] == "wibble-integrated-saddle"
+                assert page.locator("#download-adapter").count() == 0
                 page.locator("button[data-step='make']").click()
-                assert page.locator("#download-adapter").is_enabled()
+                assert "Wibble" in page.locator("#ol-checklist").inner_text()
                 with page.expect_download() as dl:
-                    page.locator("#download-adapter").click()
-                adapter_data = Path(dl.value.path()).read_bytes()
-                adapter_triangles = struct.unpack_from("<I", adapter_data, 80)[0]
-                assert adapter_triangles > 1000
-                assert len(adapter_data) == 84 + 50*adapter_triangles
+                    page.locator("#download-shade").click()
+                wibble_shade = Path(dl.value.path()).read_bytes()
+                wibble_triangles = struct.unpack_from("<I", wibble_shade, 80)[0]
+                assert len(wibble_shade) == 84 + 50*wibble_triangles
                 page.locator("button[data-step='base']").click()
                 page.locator(".base-preset[data-base='flat']").click()
                 page.wait_for_function(
-                    "() => window.OpenLampBridge.getStatus().baseId === 'flat' && !window.OpenLampBridge.getStatus().adapterGenerated",
+                    "() => window.OpenLampBridge.getStatus().baseId === 'flat' && !window.OpenLampBridge.getStatus().integratedMount",
                     timeout=90000,
                 )
-                assert page.locator("#download-adapter").is_disabled()
                 assert page.evaluate("() => window.OpenLampBridge.getShadeInterface().mount.kind") == "direct"
-                print("PASS browser: seven shapes, CAD base joint switch, Wibble adapter STL, direct Taller restoration and JSON v8")
+                page.locator("button[data-step='make']").click()
+                with page.expect_download() as dl:
+                    page.locator("#download-shade").click()
+                taller_shade = Path(dl.value.path()).read_bytes()
+                assert len(taller_shade) > 84
+                assert wibble_shade != taller_shade, "Changing base must change the integrated Shade STL"
+                print("PASS browser: seven silhouettes, two-solid Wibble and Taller, base-dependent Shade STL and JSON v9")
             finally:
                 browser.close()
     finally:
