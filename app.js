@@ -755,7 +755,17 @@
       const display=exact&&['height','diameter'].includes(key)?state[key].toFixed(2).replace('.',','):state[key].toLocaleString('es-AR');
       byId('out-'+key).textContent=display+(unit?` ${unit}`:'');
     }
-    document.querySelectorAll('.preset').forEach(el=>{el.classList.toggle('active',el.dataset.id===state.id);el.setAttribute('aria-pressed',String(el.dataset.id===state.id));});
+    document.querySelectorAll('.preset').forEach(el=>{
+      el.classList.toggle('active',el.dataset.id===state.id);
+      el.setAttribute('aria-pressed',String(el.dataset.id===state.id));
+      const p=PRESETS.find(x=>x.id===el.dataset.id);
+      const mount=mountAssembly?.baseId===selectedBase?mountAssembly:null;
+      if(selectedBase==='wibble'&&mount?.integrated&&p&&window.OpenLampBasics?.shapeFor(p)){
+        const fit=window.OpenLampBasics.fitForMount(p,mount);
+        el.disabled=!fit.ok;
+        el.title=fit.ok?'Diámetro mínimo Wibble: '+fit.minimum+' mm':fit.reason;
+      }else{el.disabled=false;el.removeAttribute('title');}
+    });
     const preset=presetById(state.id);
     document.querySelectorAll('.base-preset').forEach(btn=>{
       const active=btn.dataset.base===selectedBase;
@@ -767,9 +777,9 @@
       ? Math.ceil(window.OpenLampBasics.requiredDiameter(state,mountAssembly)) : null;
     byId('mount-warning').textContent=bp.id==='flat'
       ? 'Taller Stand: socket interno oculto, sin modificación de la silueta. Ajuste físico pendiente.'
-      : 'Wibble Stand: el borde inferior sigue la forma de las cuatro coronas originales, sin falda acampanada ni adaptador.'+
-        (minW?' Diámetro mínimo compatible: Ø'+minW+' mm.':'')+
-        ' Las medidas inviables se bloquean. Encastre físico pendiente.';
+      : 'Wibble Stand: borde inferior conformado según las cuatro coronas; sin falda artificial ni adaptador.'+
+        (minW?' Diámetro mínimo para esta forma: Ø'+minW+' mm.':'')+
+        ' Las formas demasiado pequeñas quedan deshabilitadas. Encastre físico pendiente.';
     byId('download-base').textContent='STL '+bp.name+' ↗';
     byId('current-name').textContent=exact&&!originalParameterState(state)?'Taller Top · Paramétrico':preset.name;
     byId('current-family').textContent=FAMILY[preset.family].label;
@@ -811,6 +821,7 @@
       const cap=exact||basic?buildTopCap(shade,state.topMode):null;
       if(requestId!==renderRequest)return;
       mountAssembly=mount;
+      refreshControls();
       const shadeReport=exact?validateOriginalDeformation(await loadOriginalShade(),shade):validate(shade),baseReport=validate(base);
       const baseAccepted=baseReport.ok;
       meshes={shade,base,cap};reports={shade:shadeReport,base:baseReport,baseAccepted,cap:cap?{ok:true}:null};
