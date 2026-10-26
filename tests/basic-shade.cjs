@@ -50,14 +50,16 @@ for(const p of B.presets){
  assert(a.validate(changed).ok,p.id+' changed geometry');
 }
 // Impossible socket/body wall configurations must fail rather than shrink the silhouette.
-for(const [shape,width] of [['sphere',110],['disc',140]]){
+for(const [shape,width] of [['sphere',110],['disc',90]]){
  const original=B.presets.find(p=>p.id==='basic_'+shape);
  assert(!B.validateParams({...original,diameter:width}).ok);
 }
 assert(B.validateParams(B.presets.find(p=>p.id==='basic_disc')).ok);
+assert(B.validateParams({...B.presets.find(p=>p.id==='basic_disc'),diameter:140}).ok,
+  'Disc 140mm should work because its lower section is wide');
 // Design identities must be distinguishable even with identical dimensions.
 // Preset cards use exactly this same lathed radial profile.
-const common={height:170,diameter:160,thickness:1.8};
+const common={height:105,diameter:190,thickness:1.8};
 const silhouettes=B.presets.map(p=>{
  const same={...p,...common,basicOptions:{...p.basicOptions,
    ...(p.id==='basic_cone'||p.id==='basic_bell'?{topDiameter:105}:{})}};
@@ -75,11 +77,18 @@ const pear={...B.presets.find(p=>p.id==='basic_pear'),...common};
 const sphereLow=B.radiusAt(.25,sphere),sphereHigh=B.radiusAt(.75,sphere);
 const pearLow=B.radiusAt(.25,pear),pearHigh=B.radiusAt(.75,pear);
 assert(Math.abs(sphereLow-sphereHigh)<0.01,'Sphere must remain symmetric above fixed collar');
+for(let i=0;i<=64;i++){
+ const t=i/64,pr=B.presets.find(p=>p.id==='basic_sphere');
+ const sr=B.radiusAt(t,pr),z=(t-.5)*pr.height;
+ assert(Math.abs(sr*sr+z*z-(pr.diameter/2)**2)<1e-7,
+   'Sphere must lie on an exact circle, not an elliptical approximation');
+}
+assert(B.maxDiameter(sphere)===300&&B.maxDiameter(disc)===250);
 assert(pearLow-pearHigh>common.diameter*.12,'Pear must have a pronounced low belly and narrow neck');
 assert(B.radiusAt(.34,pear)>B.radiusAt(.55,pear),'Pear peak must lie below midheight');
 const disc={...B.presets.find(p=>p.id==='basic_disc'),...common};
-assert(B.radiusAt(.72,disc)>B.radiusAt(.22,disc)*1.8,
- 'Disc must have a wide upper plate, not a second Sphere');
+assert(B.radiusAt(.5,disc)>B.radiusAt(0,disc)*1.15,
+ 'Disc must form a shallow wide lens, not a narrow mounting stem');
 const bell={...B.presets.find(p=>p.id==='basic_bell'),...common,
  basicOptions:{topDiameter:105}};
 const conical={...B.presets.find(p=>p.id==='basic_cone'),...common,
