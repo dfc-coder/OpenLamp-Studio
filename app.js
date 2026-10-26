@@ -720,7 +720,6 @@
     const exploded=viewMode==='separada';
     const dz=shadeElevation()+(exploded?27:0);
     const traces=[makeTrace(all.base,'#bb765f'),makeTrace(all.shade,'#e7d6bc',dz)];
-    if(all.adapter)traces.push(makeTrace(all.adapter,'#9b9e84'));
     if(all.cap)traces.push(makeTrace(all.cap,'#ddceb3',dz+(exploded?18:0)));
     const layout={paper_bgcolor:'rgba(0,0,0,0)',plot_bgcolor:'rgba(0,0,0,0)',margin:{t:0,b:0,l:0,r:0},showlegend:false,uirevision:'orbit',
       scene:{xaxis:{visible:false},yaxis:{visible:false},zaxis:{visible:false},aspectmode:'data',camera:{eye:{x:1.4,y:1.7,z:1.13}},bgcolor:'rgba(0,0,0,0)'},dragmode:'turntable'};
@@ -762,7 +761,7 @@
     byId('mount-warning').hidden=false;
     byId('mount-warning').textContent=bp.id==='flat'
       ? 'Taller Stand: socket interno oculto bajo la pantalla, sin cuello exterior. Holgura CAD radial nominal de 0,164 mm; ajuste físico pendiente.'
-      : 'Wibble Stand: el asiento superior queda oculto en la pantalla; los cuatro apoyos exteriores pertenecen al adaptador. Encastre sin pruebas físicas.';
+      : 'Wibble Stand: la pantalla integra su propio apoyo anular interno sobre los cuatro extremos originales. Sin pieza intermedia; apoyo CAD sujeto a prueba física.';
     byId('download-base').textContent='STL '+bp.name+' ↗';
     byId('current-name').textContent=exact&&!originalParameterState(state)?'Taller Top · Paramétrico':preset.name;
     byId('current-family').textContent=FAMILY[preset.family].label;
@@ -778,25 +777,26 @@
     for(const el of document.querySelectorAll('.view-mode'))el.classList.toggle('active',el.dataset.view===viewMode);
   }
   async function render(){
-    for(const id of ['download-shade','download-base','download-cap','download-adapter'])byId(id).disabled=true;
+    for(const id of ['download-shade','download-base','download-cap'])byId(id).disabled=true;
     const requestId=++renderRequest;
     byId('status').textContent='Generando pantalla y base…';
     try{
       const exact=state.id==='tallertop_original';
-      const shade=exact?deformOriginalShade(await loadOriginalShade(),state):buildShade(state);
       const basic=!!window.OpenLampBasics?.shapeFor(state);
-      const cap=exact||basic?buildTopCap(shade,state.topMode):null;
       const bp=currentBasePreset(),base=await loadStand(bp.id);
       if(requestId!==renderRequest)return;
       const mount=basic&&window.OpenLampMounts?
         window.OpenLampMounts.mountFor(bp.id,base):null;
-      const adapter=mount?.adapter||null;
-      const adapterReport=adapter?validate(adapter):{ok:true};
-      if(!adapterReport.ok)throw new Error('El acople de '+bp.name+' es inválido: '+JSON.stringify(adapterReport));
+      // The base controls the INSIDE of Shade. Wibble does not generate a
+      // third solid, bridge, connector or hidden export.
+      const shade=exact?deformOriginalShade(await loadOriginalShade(),state):
+        basic?window.OpenLampBasics.build(state,mount):buildShade(state);
+      const cap=exact||basic?buildTopCap(shade,state.topMode):null;
+      if(requestId!==renderRequest)return;
       mountAssembly=mount;
       const shadeReport=exact?validateOriginalDeformation(await loadOriginalShade(),shade):validate(shade),baseReport=validate(base);
       const baseAccepted=baseReport.ok;
-      meshes={shade,base,cap,adapter};reports={shade:shadeReport,base:baseReport,baseAccepted,cap:cap?{ok:true}:null,adapter:adapterReport};
+      meshes={shade,base,cap};reports={shade:shadeReport,base:baseReport,baseAccepted,cap:cap?{ok:true}:null};
       byId('s-height').textContent=`${Math.round(exact?Math.max(baseHeight(),ORIGINAL_SHADE_Z_MIN+state.height+shadeElevation()):state.height+shadeElevation())} mm`;
       let maxR=0,lowestZ=Infinity,highestZ=-Infinity;
       for(let i=0;i<shade.positions.length;i+=3){
@@ -806,19 +806,18 @@
       }
       lastShadeDimensions={heightMm:highestZ-lowestZ,diameterMm:2*maxR};
       byId('s-diameter').textContent=`${Math.ceil(2*maxR)} mm`;
-      byId('s-tris').textContent=(shade.triangleCount+base.triangleCount+(cap?.triangleCount||0)+(adapter?.triangleCount||0)).toLocaleString('es-AR');
-      byId('s-valid').textContent=shadeReport.ok&&baseAccepted?((2+Number(!!cap)+Number(!!adapter))+' sólidos ✓'):'Revisar';
+      byId('s-tris').textContent=(shade.triangleCount+base.triangleCount+(cap?.triangleCount||0)).toLocaleString('es-AR');
+      byId('s-valid').textContent=shadeReport.ok&&baseAccepted?((2+Number(!!cap))+' sólidos ✓'):'Revisar';
       if(!shadeReport.ok||!baseAccepted)throw new Error('La geometría no superó la validación');
       byId('status').textContent=bp.id==='flat'
-        ? 'Taller: unión interior oculta · línea de sombra nominal 0,9 mm · encastre FDM pendiente'
-        : adapter
-          ? 'Wibble: asiento interior oculto + 4 apoyos CAD · retención sin verificar'
-          : 'Wibble: encastre no verificado para este proyecto anterior';
+        ? 'Taller: socket cilíndrico interior · prueba FDM pendiente'
+        : mount?.integrated
+          ? 'Wibble: pantalla con apoyo interior sobre 4 lóbulos · sin adaptador adicional'
+          : 'Wibble: unión no verificada para este proyecto anterior';
       for(const id of ['download-shade','download-base'])byId(id).disabled=false;
       byId('download-cap').disabled=!cap;
-      byId('download-adapter').disabled=!adapter;
       document.dispatchEvent(new CustomEvent('openlamp:rendered',
-        {detail:{shadeValid:!!shadeReport.ok,baseValid:!!baseReport.ok,baseId:selectedBase,adapterGenerated:!!adapter}}));
+        {detail:{shadeValid:!!shadeReport.ok,baseValid:!!baseReport.ok,baseId:selectedBase,integratedMount:!!mount?.integrated}}));
       try{await plotMeshes(meshes);}catch(err){byId('status').textContent='STL preparados · No se pudo cargar el visor';console.warn(err);}
     }catch(e){byId('status').textContent='Error: '+(e.message||e);byId('s-valid').textContent='Error';console.error(e);}
   }
@@ -852,10 +851,6 @@
     byId('download-shade').addEventListener('click',()=>{if(!reports?.shade?.ok)return;fileDownload(stlBinary(meshes.shade),state.id==='tallertop_original'?(originalParameterState(state)?'tallertop-original-exacto.stl':`openlamp-shade-${state.shadeDesign?.family||'custom'}.stl`):`openlamp-pantalla-${state.id}.stl`,'model/stl');});
     byId('download-cap').addEventListener('click',()=>{if(!meshes?.cap||!reports?.cap?.ok)return;
       fileDownload(stlBinary(meshes.cap),`openlamp-${state.id}-tapa-${state.topMode}.stl`,'model/stl');
-    });
-    byId('download-adapter').addEventListener('click',()=>{
-      if(!meshes?.adapter||!reports?.adapter?.ok)return;
-      fileDownload(stlBinary(meshes.adapter),'openlamp-wibble-acople-prototipo.stl','model/stl');
     });
     byId('download-base').addEventListener('click',()=>{if(!reports?.baseAccepted)return;
       const name=currentBasePreset().filename;
@@ -905,21 +900,22 @@
       modelId:state.id,familyId:state.shadeDesign?.family||'original',
       mount:{baseId:selectedBase,
         kind:mountAssembly?.interface?.kind||'unverified',
-        adapterRequired:!!mountAssembly?.adapter,
-        adapterGenerated:!!mountAssembly?.adapter,
+        adapterRequired:false,
+        adapterGenerated:false,
+        integratedMount:!!mountAssembly?.integrated,
         cadFitStatus:mountAssembly?.status||'unverified',
-        innerRadiusMm:window.OpenLampBasics?.shapeFor(state)?window.OpenLampBasics.INNER_MOUNT:TALLER_MOUNT_INNER_RADIUS,
+        innerRadiusMm:mountAssembly?.integrated?.innerShelfRadius??(window.OpenLampBasics?.shapeFor(state)?window.OpenLampBasics.INNER_MOUNT:TALLER_MOUNT_INNER_RADIUS),
         protectedHeightMm:window.OpenLampBasics?.shapeFor(state)?window.OpenLampBasics.SOCKET_ROOF:20,
-        socketType:window.OpenLampBasics?.shapeFor(state)?'hidden-internal':'legacy',
-        socketDepthMm:window.OpenLampBasics?.shapeFor(state)?window.OpenLampBasics.INSERTION:null,
+        socketType:mountAssembly?.integrated?'wibble-integrated-saddle':window.OpenLampBasics?.shapeFor(state)?'hidden-internal':'legacy',
+        socketDepthMm:mountAssembly?.integrated?0:window.OpenLampBasics?.shapeFor(state)?window.OpenLampBasics.INSERTION:null,
         socketWallMm:window.OpenLampBasics?.shapeFor(state)?window.OpenLampBasics.SOCKET_WALL:null,
-        shadowGapMm:mountAssembly?window.OpenLampMounts.SHADOW_GAP:null,
+        shadowGapMm:mountAssembly?.integrated?mountAssembly.integrated.contactClearance:mountAssembly?window.OpenLampMounts.SHADOW_GAP:null,
         fitStatus:'physical-test-required'},
       actualDimensions:lastShadeDimensions?{...lastShadeDimensions}:null,
       closure:state.topMode,geometryValid:!!reports?.shade?.ok,
       hardwareClearanceValidated:false,
     }),
-    getStatus:()=>({adapterGenerated:!!meshes?.adapter,adapterValid:!!reports?.adapter?.ok,mountStatus:mountAssembly?.status||'unverified',shadeValid:!!reports?.shade?.ok,baseValid:!!reports?.base?.ok,
+    getStatus:()=>({adapterGenerated:false,adapterValid:false,integratedMount:!!mountAssembly?.integrated,mountStatus:mountAssembly?.status||'unverified',shadeValid:!!reports?.shade?.ok,baseValid:!!reports?.base?.ok,
       baseId:selectedBase,sourceModelId:state.id}),
   };
   window.OpenLampTest={deformOriginalShade,buildTopCap,validateOriginalDeformation,originalParameterState,DEFORMATION_LOCK_END,ORIGINAL_SHADE_HEIGHT,weldCoincidentVertices,loadOriginalShade,ORIGINAL_SHADE_PARTS,ORIGINAL_SHADE_SHA256,buildTallerShade,tallerOuterRadius,shadeElevation,TALLER_MOUNT_INNER_RADIUS,TALLER_MOUNT_ZONE_HEIGHT,TALLER_TOP_PROFILE,TALLER_TOP_ORIGINAL_HEIGHT,TALLER_TOP_ORIGINAL_DIAMETER,buildShade,buildBase,parseStandMesh,validate,stlBinary,PRESETS,BASE_PRESETS,FAMILY,SHAPE_PROFILES,profile,outerRadius,surfaceDetail,fieldLimits,sanitize,OPENING_RADIUS,BASE_HEIGHT,SEAT_HEIGHT,defaultClearance,getState:()=>({...state}),getReport:()=>reports};
