@@ -41,5 +41,6 @@ for(const original of B.presets){
  assert.equal(B.visualRadiusAt(0,p,mounts.wibble),B.radiusAt(0,p));
  assert.equal(B.visualRadiusAt(1,p,mounts.wibble),B.radiusAt(1,p));
 }
-assert(feasible>=4&&blocked>=1);
+assert.equal(feasible,7,'All seven shade families must work with Wibble');
+assert.equal(blocked,0,'Sphere and Disc must not be silently disabled');
 console.log('PASS shaped lip: no flare, angular lower seam tracks Wibble CAD, Taller remains untouched, undersized forms rejected ('+feasible+' valid, '+blocked+' blocked)');
