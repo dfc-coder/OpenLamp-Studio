@@ -46,5 +46,5 @@ for(const p of B.presets){
  assert.equal(api.stlBinary(shade).byteLength,84+shade.triangleCount*50);
  count++;
 }
-assert(count>=4,'At least four shapes must fit Wibble with approved dimensions');
+assert.equal(count,7,'All seven shapes including Sphere and Disc must fit Wibble');
 console.log('PASS Wibble: measured crown seam, original 4 lobes, no adapter, compatible forms build, impossible sizes explicitly blocked');
