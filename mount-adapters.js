@@ -1,7 +1,7 @@
-/* OpenLamp mount contracts and Wibble bridge.
+/* OpenLamp mount contracts and integrated Wibble seat.
  * Coordinates in mm. Geometry is CAD-prototype only, not physical fit certification.
- * Never alter source stand triangles. The Wibble bridge samples the upper
- * original mesh and seats over its four top lobes with a relief allowance.
+ * Never alter source stand triangles. The Wibble shade itself contains a
+ * shallow four-tip-supported annular shelf, with no third adapter solid.
  */
 (function(root,factory){
  const api=factory();
@@ -10,13 +10,15 @@
 })(typeof window!=='undefined'?window:undefined,function(){
  'use strict';
  const TAU=2*Math.PI;
+ const WIBBLE_SKIRT_DROP=3.0;
+ const WIBBLE_CONTACT_GAP=0.4;
  const SHADOW_GAP=0.9; // nominal visual joint separation, physical calibration pending
  const FLAT=Object.freeze({id:'flat',kind:'direct',seatOuterRadius:34.880,
    socketInnerRadius:35.044,insertion:14.17,contactClearance:0.164,
    verifiedCAD:true,verifiedPhysical:false});
- const WIBBLE=Object.freeze({id:'wibble',kind:'conformal-bridge',
-   seatOuterRadius:34.880,socketInnerRadius:35.044,insertion:14.17,
-   contactClearance:0.6,verifiedCAD:false,verifiedPhysical:false});
+ const WIBBLE=Object.freeze({id:'wibble',kind:'integrated-saddle',
+   seatOuterRadius:null,socketInnerRadius:null,insertion:0,
+   contactClearance:WIBBLE_CONTACT_GAP,verifiedCAD:false,verifiedPhysical:false});
  const profiles=Object.freeze({flat:FLAT,wibble:WIBBLE});
  const clamp=(v,a,b)=>Math.max(a,Math.min(v,b));
  const angleDistance=(a,b)=>Math.atan2(Math.sin(a-b),Math.cos(a-b));
@@ -74,85 +76,43 @@
      return max;
    };
  }
- function bridgeParameters(standMesh){
-   const analysis=topLobes(standMesh);
-   return {id:'wibble',kind:'conformal-bridge',top:analysis.zTop,
-     plateTop:analysis.zTop+8,shadeBottom:analysis.zTop+8+SHADOW_GAP,
-     seatTop:analysis.zTop+8+WIBBLE.insertion,seatRadius:WIBBLE.seatOuterRadius,
-     contactClearance:WIBBLE.contactClearance,tips:analysis.tips};
- }
- function buildWibbleBridge(standMesh){
-   const params=bridgeParameters(standMesh);
-   const N=128,steps=20,RBORE=16,RSEAT=WIBBLE.seatOuterRadius;
-   const zTop=params.top,plate=params.plateTop;
-   const sample=upperSurfaceSampler(standMesh,zTop-26);
-   // Four radial arms follow actual apex angles, not an invented central socket.
-   // Narrow waist between arms avoids hiding Wibble's sculptural form.
-   const outerRadius=theta=>{
-     let influence=0;
-     for(const tip of params.tips){
-       const diff=angleDistance(theta,tip.theta);
-       influence=Math.max(influence,Math.exp(-0.5*(diff/0.29)**2));
-     }
-     return 43+40*influence;
-   };
-   const points=[],faces=[],rings=[];
-   const addRing=(fn)=>{
-     const ring=[];
-     for(let j=0;j<N;j++){
-       const theta=j*TAU/N,p=fn(theta);
-       ring.push(points.length/3);points.push(p[0],p[1],p[2]);
-     }
-     rings.push(ring);
-   };
-   const ringAt=(rad,z)=>addRing(t=>[rad*Math.cos(t),rad*Math.sin(t),z]);
-   ringAt(RBORE,params.seatTop);
-   ringAt(RSEAT,params.seatTop);
-   ringAt(RSEAT,plate);
-   // Upper plate: 20 radial segments, clover-shaped boundary.
-   for(let k=1;k<=steps;k++)addRing(t=>{
-     const rad=RSEAT+(outerRadius(t)-RSEAT)*k/steps;
-     return [rad*Math.cos(t),rad*Math.sin(t),plate];
-   });
-   // Bottom at the outer edge, followed by measured conformal underside.
-   // Clearance is toward the FREE space, so no deliberate CAD penetration.
-   const fallback=zTop-12;
-   for(let k=steps;k>=0;k--)addRing(t=>{
-     const rad=RBORE+(outerRadius(t)-RBORE)*k/steps;
-     const x=rad*Math.cos(t),y=rad*Math.sin(t);
-     const sampled=sample(x,y);
-     const underside=Number.isFinite(sampled)?
-       Math.max(fallback,sampled+WIBBLE.contactClearance):fallback;
-     if(underside>=plate-1.5)throw new Error('Puente sin espesor suficiente sobre Wibble');
-     return [x,y,underside];
-   });
-   // Closing ring: r=RBORE near base, then up the bore to first ring.
-   // Last underside ring already sits on RBORE; connect to original ring at top.
-   // For a radial contour ordered as [inner top -> outer top -> outer underside -> inner underside],
-   // theta faces use the same orientation on every segment.
-   for(let k=0;k<rings.length;k++){
-     const a=rings[k],b=rings[(k+1)%rings.length];
-     for(let j=0;j<N;j++){
-       const n=(j+1)%N;
-       faces.push(a[j],b[j],a[n],a[n],b[j],b[n]);
-     }
-   }
-   const mesh={positions:new Float32Array(points),indices:new Uint32Array(faces),
-     vertexCount:points.length/3,triangleCount:faces.length/3};
-   return {mesh,profile:params,status:'prototype',contactSites:params.tips.length};
- }
- const bridgeCache=new WeakMap();
+ const mountsCache=new WeakMap();
  function mountFor(baseId,standMesh){
    const spec=profileFor(baseId);
-   if(baseId==='flat')return {baseId,status:'cad-only',adapter:null,
+   if(baseId==='flat')return {
+     baseId,status:'cad-only',adapter:null,
      shadeBottom:35.59607-spec.insertion+SHADOW_GAP,
-     interface:{...spec}};
-   let bridge=bridgeCache.get(standMesh);
-   if(!bridge){bridge=buildWibbleBridge(standMesh);bridgeCache.set(standMesh,bridge);}
-   return {baseId,status:'prototype',adapter:bridge.mesh,
-     shadeBottom:bridge.profile.shadeBottom,interface:{...spec},
-     bridgeProfile:bridge.profile,contactSites:bridge.contactSites};
+     interface:{...spec},
+   };
+   if(mountsCache.has(standMesh))return mountsCache.get(standMesh);
+   // The Wibble lobe tips are the sole source of contact positioning.
+   // The integrated annular support inside Shade stays 0.4mm above their
+   // actual highest Z. The visible skirt drops 3mm to hide the upper tips.
+   const {zTop,tips}=topLobes(standMesh);
+   const maxTipRadius=Math.max(...tips.map(p=>p.r));
+   const minTipRadius=Math.min(...tips.map(p=>p.r));
+   const shadeBottom=zTop-WIBBLE_SKIRT_DROP;
+   const mount={
+     baseId,status:'prototype',adapter:null,shadeBottom,
+     interface:{...spec},contactSites:tips.length,
+     integrated:{
+       kind:'wibble-saddle',
+       tipHeight:zTop,
+       tipRadii:tips.map(x=>x.r),
+       tipAngles:tips.map(x=>x.theta),
+       innerShelfRadius:minTipRadius-8,
+       requiredExteriorRadius:maxTipRadius+8.5,
+       contactUndersideZ:WIBBLE_SKIRT_DROP+WIBBLE_CONTACT_GAP,
+       contactTopZ:WIBBLE_SKIRT_DROP+WIBBLE_CONTACT_GAP+3.5,
+       blendStartZ:22,
+       blendEndZ:63,
+       skirtDrop:WIBBLE_SKIRT_DROP,
+       contactClearance:WIBBLE_CONTACT_GAP,
+     },
+   };
+   mountsCache.set(standMesh,mount);
+   return mount;
  }
- return Object.freeze({profiles,profileFor,topLobes,bridgeParameters,
-   buildWibbleBridge,mountFor,upperSurfaceSampler,SHADOW_GAP});
+ return Object.freeze({profiles,profileFor,topLobes,mountFor,upperSurfaceSampler,
+   SHADOW_GAP,WIBBLE_SKIRT_DROP,WIBBLE_CONTACT_GAP});
 });
