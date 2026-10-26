@@ -58,8 +58,9 @@ for(const p of B.presets){
 // their contact seam. Measure CAD BOOLEAN collision volume, not zero STL count.
 // Full sampled facet-clearance tests apply to all seven Wibble shade families.
 function stlVolumeFromAscii(content){
- const pts=[...content.matchAll(/vertex\\s+([-+\\d.eE]+)\\s+([-+\\d.eE]+)\\s+([-+\\d.eE]+)/g)]
+ const pts=[...content.matchAll(/vertex\s+([-+\d.eE]+)\s+([-+\d.eE]+)\s+([-+\d.eE]+)/g)]
    .map(m=>[Number(m[1]),Number(m[2]),Number(m[3])]);
+ assert(pts.length>0,'OpenSCAD STL collision file contains no parseable vertices');
  assert(pts.length%3===0);
  let sum=0;
  for(let i=0;i<pts.length;i+=3){
