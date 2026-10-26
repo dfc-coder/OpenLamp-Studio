@@ -178,7 +178,7 @@
        blendStartZ:22,
        blendEndZ:63,
        skirtDrop:WIBBLE_SKIRT_DROP,
-       radialSamples:18,
+       radialSamples:48,
      },
    };
    mountsCache.set(standMesh,mount);

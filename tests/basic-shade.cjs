@@ -84,11 +84,13 @@ for(let i=0;i<=64;i++){
    'Sphere must lie on an exact circle, not an elliptical approximation');
 }
 const disc={...B.presets.find(p=>p.id==='basic_disc'),...common};
-assert(B.maxDiameter(sphere)===300&&B.maxDiameter(disc)===250);
+assert(B.maxDiameter(sphere)===300&&B.maxDiameter(disc)===280);
 assert(pearLow-pearHigh>common.diameter*.12,'Pear must have a pronounced low belly and narrow neck');
 assert(B.radiusAt(.34,pear)>B.radiusAt(.55,pear),'Pear peak must lie below midheight');
-assert(B.radiusAt(.8,disc)>B.radiusAt(.1,disc)*1.15,
- 'Disc must form a shallow wide lens, not a narrow mounting stem');
+assert(B.radiusAt(.5,disc)>B.radiusAt(.1,disc)*1.20,
+ 'Disc must have a pronounced wide lenticular equator');
+assert(Math.abs(B.radiusAt(0,disc)-B.radiusAt(1,disc))<0.01,
+ 'Disc upper and lower shoulders must be symmetric');
 const bell={...B.presets.find(p=>p.id==='basic_bell'),...common,
  basicOptions:{topDiameter:105}};
 const conical={...B.presets.find(p=>p.id==='basic_cone'),...common,

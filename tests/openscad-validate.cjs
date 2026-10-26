@@ -58,8 +58,9 @@ for(const p of B.presets){
 // their contact seam. Measure CAD BOOLEAN collision volume, not zero STL count.
 // Full sampled facet-clearance tests apply to all seven Wibble shade families.
 function stlVolumeFromAscii(content){
- const pts=[...content.matchAll(/vertex\\s+([-+\\d.eE]+)\\s+([-+\\d.eE]+)\\s+([-+\\d.eE]+)/g)]
+ const pts=[...content.matchAll(/vertex\s+([-+\d.eE]+)\s+([-+\d.eE]+)\s+([-+\d.eE]+)/g)]
    .map(m=>[Number(m[1]),Number(m[2]),Number(m[3])]);
+ assert(pts.length>0,'OpenSCAD STL collision file contains no parseable vertices');
  assert(pts.length%3===0);
  let sum=0;
  for(let i=0;i<pts.length;i+=3){
@@ -72,24 +73,26 @@ function stlVolumeFromAscii(content){
  return Math.abs(sum);
 }
 const CAD_COLLISION_TOLERANCE_MM3=0.01;
-for(const shape of ['cylinder']){
+for(const shape of ['cylinder','sphere','disc']){
  const source=path.resolve(outDir,'source-wibble.stl').replaceAll('\\','/');
  const shade=path.resolve(outDir,'wibble-basic_'+shape+'.stl').replaceAll('\\','/');
  const scadPath=path.join(outDir,'collision-'+shape+'.scad');
  const collision=path.join(outDir,'collision-'+shape+'.stl');
  const z=mounts.wibble.shadeBottom;
- fs.writeFileSync(scadPath,'intersection() { import("'+source+'",convexity=10); translate([0,0,'+z+']) import("'+shade+'",convexity=10); }\\n');
+ fs.writeFileSync(scadPath,'intersection() { import("'+source+'",convexity=10); translate([0,0,'+z+']) import("'+shade+'",convexity=10); }\n');
  if(fs.existsSync(collision))fs.unlinkSync(collision);
  const x=cp.spawnSync('openscad',['-o',collision,scadPath],{
    env:{...process.env,QT_QPA_PLATFORM:'offscreen'},encoding:'utf8',
    timeout:150000,maxBuffer:6*1024*1024});
- const log=(x.stderr||'')+'\\n'+(x.stdout||'');
- if(x.error||x.status!==0||/ERROR:/.test(log))
+ const log=(x.stderr||'')+'\n'+(x.stdout||'');
+ // OpenSCAD 2021.01 exits nonzero for a valid EMPTY boolean intersection.
+ const noCollision=!fs.existsSync(collision)&&/Current top level object is empty\./.test(log);
+ if(x.error||(!noCollision&&x.status!==0)||/ERROR:/.test(log))
    throw Error('OpenSCAD assembly collision evaluation failed: '+log);
  const volume=fs.existsSync(collision)
    ? stlVolumeFromAscii(fs.readFileSync(collision,'utf8')):0;
  if(volume>CAD_COLLISION_TOLERANCE_MM3)
-   throw Error('Actual Wibble/Cylinder collision exceeds 0.01 mm³: '+volume+' mm³');
+   throw Error('Actual Wibble/'+shape+' collision exceeds 0.01 mm³: '+volume+' mm³');
  console.log('OPENSCAD ASSEMBLY CHECK '+shape+' + Wibble: measured overlap '+volume.toFixed(6)+' mm³ (tolerance '+CAD_COLLISION_TOLERANCE_MM3+')');
 }
 fs.writeFileSync(path.join(outDir,'cad-report.json'),JSON.stringify(records,null,2));
