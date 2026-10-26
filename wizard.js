@@ -177,7 +177,7 @@
     if(!bridge||!compat)return;
     const project=bridge.getProject(),status=bridge.getStatus();
     const report=compat.evaluate({baseId:project.baseId,hardware:project.params.hardware,
-      shadeValid:status.shadeValid,baseValid:status.baseValid,adapterGenerated:status.adapterGenerated&&status.adapterValid});
+      shadeValid:status.shadeValid,baseValid:status.baseValid,adapterGenerated:false,integratedMount:status.integratedMount});
     const bulb=$('ol-bulb-status');
     if(bulb){
       bulb.textContent=report.blockers.length?
@@ -192,8 +192,8 @@
         ['Geometría',report.geometryStatus==='valid'?'STL individuales habilitados':'Geometría pendiente',''+(report.geometryStatus==='valid'?'ok':'warn')],
         ['Base',compat.interfaces[project.baseId]?.name||'Sin base',report.knownMount?'ok':'warn'],
         ['Bulb',report.hardware.type==='none'?'Kit no seleccionado':(report.hardware.sku||'Sin referencia'),'warn'],
-        ['Encastre',report.knownMount?'Taller: asiento directo · falta prueba física':report.adapterPrototype?'Wibble: acople personalizado · prueba de retención pendiente':'Acople no generado','warn'],
-        ['Fabricación','Acople prototipo y seguridad no ensayados','warn'],
+        ['Encastre',report.knownMount?'Taller: socket directo · ensayo físico pendiente':report.integratedPrototype?'Wibble: apoyo en la pantalla, sin adaptador · retención pendiente':'Interfaz no verificada','warn'],
+        ['Fabricación','Apoyo CAD y seguridad eléctrica/térmica pendientes de ensayo','warn'],
       ];
       for(const [name,desc,style] of rows){
         const item=el('div','ol-check-item '+style);
