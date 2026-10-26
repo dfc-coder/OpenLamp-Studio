@@ -18,9 +18,9 @@
   ['cone','Cone','△',165,148,{topDiameter:100}],
   ['dome','Dome','◠',143,154,{}],
   ['bell','Bell','⌒',148,162,{topDiameter:91}],
-  ['sphere','Sphere','○',155,158,{}],
+  ['sphere','Sphere','○',155,205,{}],
   ['pear','Pear','♧',160,153,{belly:0.34}],
-  ['disc','Disc','═',100,177,{discDepth:0.30}],
+  ['disc','Disc','═',78,200,{discDepth:0.30}],
  ];
  const presets=Object.freeze(defs.map(([shape,name,glyph,height,diameter,extra])=>Object.freeze({
   id:'basic_'+shape,name,family:'basic',glyph,height,diameter,thickness:1.8,waist:0,curvature:0,
@@ -63,9 +63,12 @@
       r=R+(o.topDiameter/2-R)*flare;break;
     }
     case 'sphere':{
-      // Centered and vertically symmetric spherical section. Open cut ends.
-      const q=2*u-1;
-      r=R*Math.sqrt(1-0.60*q*q);break;
+      // An EXACT circular section: all exterior vertices satisfy the SAME
+      // sphere equation r² + (z-height/2)² = (diameter/2)².
+      // Height controls ONLY the two planar cropping positions. It does not
+      // stretch a sphere into an ellipsoid. Diameters <= height are invalid.
+      const z=(u-.5)*p.height;
+      r=Math.sqrt(R*R-z*z);break;
     }
     case 'pear':{
       // Teardrop grammar: broad lower belly and a genuinely narrow upper neck.
@@ -77,12 +80,11 @@
       break;
     }
     case 'disc':{
-      // Narrow lower stem, wide shallow upper plate, then a short crown.
-      // The broad shelf is confined to the upper half, not a flattened Sphere.
-      const start=clamp(0.69-(o.discDepth-0.30)*0.50,0.58,0.77);
-      const shoulder=smooth((u-0.20)/(start-0.20));
-      const crown=smooth((u-(start+0.12))/(1-start-0.12));
-      r=R*(0.48+0.52*shoulder)*(1-0.31*crown);
+      // Wide, genuinely low disc/lens: NO skinny pedestal beneath it.
+      // The contact section is 84% of the maximum radius, so a compact
+      // desktop disc can sit directly over Wibble's four upper crowns.
+      const pwr=clamp(o.discDepth*3,0.65,1.45);
+      r=R*(0.84+0.16*Math.pow(Math.max(0,Math.sin(Math.PI*u)),pwr));
       break;
     }
     default:throw new Error('Forma básica desconocida');
@@ -92,16 +94,25 @@
  function minimumDiameter(p){
    // A radial web must fit between the visual exterior and the concealed
    // socket wall; neither the original stand nor the exterior gets squeezed.
-   const ratio={cylinder:1,cone:1,dome:1,bell:1,
-     sphere:Math.sqrt(0.4),pear:0.76,disc:0.48}[shapeFor(p)];
-   if(!ratio)return Infinity;
-   return 2*(INNER_MOUNT+SOCKET_WALL+p.thickness+MIN_LIGAMENT)/ratio;
+   const target=INNER_MOUNT+SOCKET_WALL+p.thickness+MIN_LIGAMENT;
+   if(shapeFor(p)==='sphere')return 2*Math.hypot(target,p.height/2);
+   const ratio={cylinder:1,cone:1,dome:1,bell:1,pear:0.76,disc:0.84}[shapeFor(p)];
+   return ratio?2*target/ratio:Infinity;
+ }
+ function maxDiameter(p){
+   switch(shapeFor(p)){
+     case 'sphere':return 300;
+     case 'disc':return 250;
+     default:return 220;
+   }
  }
  function validateParams(p){
    const shape=shapeFor(p),errors=[];
    if(!validId(shape))errors.push('Forma desconocida');
    if(!Number.isFinite(p.height)||p.height<90||p.height>270)errors.push('Altura 90–270 mm');
-   if(!Number.isFinite(p.diameter)||p.diameter<110||p.diameter>220)errors.push('Diámetro 110–220 mm');
+   if(!Number.isFinite(p.diameter)||p.diameter<110||p.diameter>maxDiameter(p))errors.push('Diámetro fuera del rango 110–'+maxDiameter(p)+' mm');
+   if(shape==='sphere'&&p.height>=p.diameter)
+     errors.push('Sphere: altura de la zona esférica debe ser menor que el diámetro');
    if(Number.isFinite(p.diameter)&&Number.isFinite(p.thickness)&&
      p.diameter<minimumDiameter(p)-0.0001)
      errors.push('Diámetro insuficiente para alojar el encastre interior sin deformar la silueta (mínimo '+Math.ceil(minimumDiameter(p))+' mm)');
@@ -125,14 +136,27 @@
  function requiredDiameter(p,mount){
    const seat=mount?.integrated;
    if(!seat)return minimumDiameter(p);
-   const unit={...p,diameter:200};
-   const bottomFactor=radiusAt(0,unit)/100;
-   return Math.max(minimumDiameter(p),2*(seat.minExteriorRadius+p.thickness)/bottomFactor);
+   const target=seat.minExteriorRadius+p.thickness;
+   // Solve against the TRUE radial profile. Sphere is nonlinear in diameter:
+   // multiplying a 200-mm sample would incorrectly reject spherical sections.
+   const upper=maxDiameter(p),lower=Math.max(110,minimumDiameter(p));
+   if(lower>upper)return lower;
+   if(radiusAt(0,{...p,diameter:upper})<target)return Infinity;
+   let lo=lower,hi=upper;
+   for(let step=0;step<28;step++){
+     const d=(lo+hi)/2;
+     if(radiusAt(0,{...p,diameter:d})<target)lo=d;
+     else hi=d;
+   }
+   return hi;
  }
  function fitForMount(p,mount){
-   const minimum=Math.ceil(requiredDiameter(p,mount));
-   return minimum>220?{ok:false,minimum,reason:'La forma necesita al menos Ø'+minimum+' mm para Wibble; máximo permitido Ø220 mm.'}:
-     {ok:true,minimum,params:{...p,diameter:Math.max(p.diameter,minimum)}};
+   const needed=requiredDiameter(p,mount);
+   const max=maxDiameter(p);
+   if(!Number.isFinite(needed)||needed>max)
+     return {ok:false,minimum:Math.ceil(needed),reason:'Esta silueta requiere más de Ø'+max+' mm para asentarse en Wibble sin deformarse.'};
+   const minimum=Math.ceil(needed+0.002);
+   return {ok:true,minimum,params:{...p,diameter:Math.max(p.diameter,minimum)}};
  }
  function conformedLipZ(z,theta,seat){
    if(!seat)return z;
@@ -293,5 +317,5 @@
    return {positions,indices,vertexCount:sections.length*N,triangleCount:indices.length/3};
  }
  return Object.freeze({presets,shapeFor,validId,optionsFor,radiusAt,validateParams,build,
-  INNER_MOUNT,INSERTION,SOCKET_WALL,SOCKET_ROOF,SOCKET_UNDERSIDE,MIN_LIGAMENT,minimumDiameter,requiredDiameter,fitForMount,conformedLipZ,matingUndersideAt,crossSection,visualRadiusAt,saddleUndersideAt,SEGMENTS,LEVELS});
+  INNER_MOUNT,INSERTION,SOCKET_WALL,SOCKET_ROOF,SOCKET_UNDERSIDE,MIN_LIGAMENT,minimumDiameter,maxDiameter,requiredDiameter,fitForMount,conformedLipZ,matingUndersideAt,crossSection,visualRadiusAt,saddleUndersideAt,SEGMENTS,LEVELS});
 });
