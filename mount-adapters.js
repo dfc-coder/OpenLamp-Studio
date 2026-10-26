@@ -92,6 +92,38 @@
    const maxTipRadius=Math.max(...tips.map(p=>p.r));
    const minTipRadius=Math.min(...tips.map(p=>p.r));
    const shadeBottom=zTop-WIBBLE_SKIRT_DROP;
+   // Actual upper Wibble triangles are the surface-of-truth. Sample their
+   // height over XY; unsupported angular sectors are OPEN SPACE, not flat seats.
+   // Cache the spatial index once per source mesh, not once per slider edit.
+   const sampleTop=upperSurfaceSampler(standMesh,zTop-15);
+   const skirtBins=192,rawEnvelope=new Float64Array(skirtBins);
+   for(let i=0;i<standMesh.positions.length;i+=3){
+     const x=standMesh.positions[i],y=standMesh.positions[i+1],z=standMesh.positions[i+2];
+     if(z<zTop-5)continue;
+     const r=Math.hypot(x,y);
+     if(r<55)continue;
+     const theta=(Math.atan2(y,x)+TAU)%TAU;
+     const bin=Math.floor(theta/TAU*skirtBins)%skirtBins;
+     rawEnvelope[bin]=Math.max(rawEnvelope[bin],r);
+   }
+   // Expand over the actual CAD angular footprint, soften angular transitions
+   // and never shrink any bin below the measured source envelope.
+   const envelope=new Float64Array(skirtBins);
+   for(let i=0;i<skirtBins;i++){
+     let maximum=0;
+     for(let k=-5;k<=5;k++)maximum=Math.max(maximum,
+       rawEnvelope[(i+k+skirtBins)%skirtBins]);
+     envelope[i]=maximum;
+   }
+   const circularEnvelope=angle=>{
+     const a=((angle%TAU)+TAU)%TAU,idx=a/TAU*skirtBins;
+     const i=Math.floor(idx),f=idx-i;
+     return envelope[i%skirtBins]*(1-f)+envelope[(i+1)%skirtBins]*f;
+   };
+   const localSurfaceZ=(r,theta)=>{
+     const z=sampleTop(r*Math.cos(theta),r*Math.sin(theta));
+     return Number.isFinite(z)?z-shadeBottom:null;
+   };
    const mount={
      baseId,status:'prototype',adapter:null,shadeBottom,
      interface:{...spec},contactSites:tips.length,
@@ -100,14 +132,21 @@
        tipHeight:zTop,
        tipRadii:tips.map(x=>x.r),
        tipAngles:tips.map(x=>x.theta),
-       innerShelfRadius:minTipRadius-8,
+       innerShelfRadius:minTipRadius-11,
        requiredExteriorRadius:maxTipRadius+8.5,
+       // Measured annular contact follows the actual topography in 2D (r,theta).
+       // An angularly independent plane cannot locate Wibble's four lobes.
+       sampleTop:localSurfaceZ,
+       envelopeRadius:circularEnvelope,
+       minContactZ:0.65,
+       seatRoofZ:10.5,
+       contactClearance:WIBBLE_CONTACT_GAP,
        contactUndersideZ:WIBBLE_SKIRT_DROP+WIBBLE_CONTACT_GAP,
-       contactTopZ:WIBBLE_SKIRT_DROP+WIBBLE_CONTACT_GAP+3.5,
+       contactTopZ:10.5,
        blendStartZ:22,
        blendEndZ:63,
        skirtDrop:WIBBLE_SKIRT_DROP,
-       contactClearance:WIBBLE_CONTACT_GAP,
+       radialSamples:18,
      },
    };
    mountsCache.set(standMesh,mount);
