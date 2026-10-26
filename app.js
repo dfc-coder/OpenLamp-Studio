@@ -743,7 +743,7 @@
       lo=Math.min(lo,state[key]);hi=Math.max(hi,state[key]);
       const family=state.shadeDesign?.family||'original';
       const limits=window.OpenLampShade?.families[family];
-      if(basic&&key==='height'){lo=90;hi=270;input.step='1';}
+      if(basic&&key==='height'){lo=state.id==='basic_disc'?50:90;hi=state.id==='basic_disc'?150:270;input.step='1';}
       if(basic&&key==='diameter'){
         const activeMount=mountAssembly?.baseId===selectedBase?mountAssembly:null;
         lo=Math.max(110,Math.ceil(window.OpenLampBasics.requiredDiameter(state,activeMount)));
