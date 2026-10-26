@@ -17,7 +17,8 @@ assert.equal(wibble.contactSites,4);
 assert.equal(wibble.integrated.tipRadii.length,4);
 assert(wibble.shadeBottom>190&&wibble.shadeBottom<210);
 assert(Math.abs((wibble.integrated.contactUndersideZ-wibble.integrated.skirtDrop)-M.WIBBLE_CONTACT_GAP)<1e-8);
-assert(Math.abs((wibble.integrated.contactTopZ-wibble.integrated.contactUndersideZ)-3.5)<1e-8);
+assert(wibble.integrated.seatRoofZ-wibble.integrated.contactUndersideZ>3,
+  'There must be printable material above the four conformal seats');
 assert.strictEqual(M.mountFor('wibble',stand),wibble,'Indexed Wibble geometry must be cached');
 const source=M.topLobes(stand),sample=M.upperSurfaceSampler(stand,source.zTop-26);
 for(const tip of source.tips){
@@ -25,16 +26,24 @@ for(const tip of source.tips){
  assert(Number.isFinite(z)&&Math.abs(z-tip.z)<0.05,'Landing support must reference real tip geometry');
  assert(tip.r>wibble.integrated.innerShelfRadius);
  assert(tip.r<wibble.integrated.requiredExteriorRadius-B.presets[0].thickness);
- const seatUnderside=wibble.shadeBottom+wibble.integrated.contactUndersideZ;
- assert(seatUnderside-z>=M.WIBBLE_CONTACT_GAP-0.05);
- assert(seatUnderside-z<=M.WIBBLE_CONTACT_GAP+0.08);
+ const underside=B.saddleUndersideAt(tip.r,tip.theta,wibble.integrated)+wibble.shadeBottom;
+ assert(Math.abs((underside-z)-M.WIBBLE_CONTACT_GAP)<0.06,
+   'Each sculpted pocket must reproduce the real triangular contact surface');
+ assert(wibble.integrated.envelopeRadius(tip.theta)+7>tip.r+5,
+   'Exterior lip must contain the upper Wibble crown');
 }
 assert.equal(Buffer.from(stand.positions.buffer,stand.positions.byteOffset,stand.positions.byteLength).toString('base64'),before,'Original Wibble coordinates changed');
 for(const p of B.presets){
  const shade=B.build(p,wibble);
  assert(a.validate(shade).ok,p.id+' integrated shade must be manifold');
+ const section=B.crossSection(p,wibble),start=section.findIndex(x=>x.kind==='saddle');
+ assert(start>0,'Missing 2D conformal pockets');
+ const n=192,ring=start+8,heights=[];
+ for(let j=0;j<n;j++)heights.push(shade.positions[(ring*n+j)*3+2]);
+ assert(Math.max(...heights)-Math.min(...heights)>0.8,
+   p.id+' still has a flat support ring instead of four distinct lobe pockets');
  assert.equal(shade.indices.length/3,shade.triangleCount);
  assert.equal(a.stlBinary(shade).byteLength,84+50*shade.triangleCount);
 }
 assert.equal(typeof M.buildWibbleBridge,'undefined','Old green bridge builder must not be exported');
-console.log('PASS Wibble: original four tips sampled, internal saddle in Shade, 2 solids, no green adapter, closed STL');
+console.log('PASS Wibble: original four tips sampled, four measured concave pockets in Shade, 2 solids, no green adapter, closed STL');
