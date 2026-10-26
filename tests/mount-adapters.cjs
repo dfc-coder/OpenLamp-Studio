@@ -1,71 +1,40 @@
 const assert=require('node:assert/strict');
 const fs=require('node:fs'),path=require('node:path'),zlib=require('node:zlib'),vm=require('node:vm');
 const M=require('../mount-adapters.js'),B=require('../basic-shade.js');
-const context={window:{addEventListener(){},OpenLampBasics:B,OpenLampMounts:M},
+const cx={window:{addEventListener(){},OpenLampBasics:B,OpenLampMounts:M},
  console,Math,Float32Array,Uint32Array,ArrayBuffer,DataView,Map,WeakMap,Number,Error};
-vm.runInNewContext(fs.readFileSync(path.join(__dirname,'..','app.js'),'utf8'),context);
-const a=context.window.OpenLampTest;
-const bytes=fs.readFileSync(path.join(__dirname,'..','assets/stands/wibble-stand.olmesh.gz'));
-const raw=zlib.gunzipSync(bytes);
-const buffer=raw.buffer.slice(raw.byteOffset,raw.byteOffset+raw.byteLength);
-const stand=a.parseStandMesh(buffer);
-assert.equal(a.validate(stand).ok,true,'Wibble source must be valid');
-const immutableSourceCopy=Buffer.from(stand.positions.buffer,stand.positions.byteOffset,stand.positions.byteLength).subarray(0).toString('base64');
-const direct=M.mountFor('flat',stand);
-assert(!direct.adapter);assert.equal(direct.interface.kind,'direct');
-assert(Math.abs(direct.shadeBottom-(35.59607-14.17+M.SHADOW_GAP))<1e-6);
-const integrated=M.mountFor('wibble',stand);
-assert(integrated.adapter,'Wibble MUST generate an adapter, not reuse Taller cylindrical seat');
-assert.equal(integrated.contactSites,4);
-assert.equal(integrated.interface.kind,'conformal-bridge');
-assert(integrated.shadeBottom>200&&integrated.shadeBottom<213);
-assert.notEqual(integrated.shadeBottom,direct.shadeBottom);
-const check=a.validate(integrated.adapter);
-assert(check.ok,'Wibble bridge must be a closed orientable manifold: '+JSON.stringify(check));
-assert.equal(integrated.adapter.triangleCount,integrated.adapter.indices.length/3);
-assert.equal(Buffer.from(stand.positions.buffer,stand.positions.byteOffset,stand.positions.byteLength).toString('base64'),
-  immutableSourceCopy,'Wibble OBJ vertices must not be modified');
-assert(integrated.bridgeProfile.seatTop-integrated.shadeBottom>13.0 &&
-       integrated.bridgeProfile.seatTop-integrated.shadeBottom<14.17,
-  'Shade has to overlap the Wibble adapter male seat with nominal insertion');
-const upperSampler=M.upperSurfaceSampler(stand,integrated.bridgeProfile.top-26);
-let reliefSamples=0;
-const adapter=integrated.adapter;
-const countAround=128;
-const rings=adapter.positions.length/(3*countAround);
-const firstUndersideRing=23;
-for(let k=firstUndersideRing;k<rings;k++)for(let j=0;j<countAround;j++){
-  const i=3*(k*countAround+j),x=adapter.positions[i],y=adapter.positions[i+1],z=adapter.positions[i+2];
-  const contactZ=upperSampler(x,y);
-  if(!Number.isFinite(contactZ))continue;
-  assert(z+0.002>=contactZ+integrated.interface.contactClearance,
-    'Bridge underside must remain CAD-clear of the Wibble mesh');
-  reliefSamples++;
+vm.runInNewContext(fs.readFileSync(path.join(__dirname,'..','app.js'),'utf8'),cx);
+const a=cx.window.OpenLampTest;
+const raw=zlib.gunzipSync(fs.readFileSync(path.join(__dirname,'..','assets/stands/wibble-stand.olmesh.gz')));
+const stand=a.parseStandMesh(raw.buffer.slice(raw.byteOffset,raw.byteOffset+raw.byteLength));
+assert(a.validate(stand).ok);
+const before=Buffer.from(stand.positions.buffer,stand.positions.byteOffset,stand.positions.byteLength).toString('base64');
+const taller=M.mountFor('flat',stand),wibble=M.mountFor('wibble',stand);
+assert.equal(taller.adapter,null);assert.equal(wibble.adapter,null,'Do not generate any green bridge');
+assert.equal(taller.interface.kind,'direct');
+assert.equal(wibble.interface.kind,'integrated-saddle');
+assert.equal(wibble.contactSites,4);
+assert.equal(wibble.integrated.tipRadii.length,4);
+assert(wibble.shadeBottom>190&&wibble.shadeBottom<210);
+assert.equal(wibble.integrated.contactUndersideZ-wibble.integrated.skirtDrop,M.WIBBLE_CONTACT_GAP);
+assert.equal(wibble.integrated.contactTopZ-wibble.integrated.contactUndersideZ,3.5);
+assert.strictEqual(M.mountFor('wibble',stand),wibble,'Indexed Wibble geometry must be cached');
+const source=M.topLobes(stand),sample=M.upperSurfaceSampler(stand,source.zTop-26);
+for(const tip of source.tips){
+ const z=sample(tip.x,tip.y);
+ assert(Number.isFinite(z)&&Math.abs(z-tip.z)<0.05,'Landing support must reference real tip geometry');
+ assert(tip.r>wibble.integrated.innerShelfRadius);
+ assert(tip.r<wibble.integrated.requiredExteriorRadius-B.presets[0].thickness);
+ const seatUnderside=wibble.shadeBottom+wibble.integrated.contactUndersideZ;
+ assert(seatUnderside-z>=M.WIBBLE_CONTACT_GAP-0.05);
+ assert(seatUnderside-z<=M.WIBBLE_CONTACT_GAP+0.08);
 }
-assert(reliefSamples>100,'Must check real source-derived contact samples, not just four tips');
-
-const file=a.stlBinary(integrated.adapter);
-assert.equal(file.byteLength,84+integrated.adapter.triangleCount*50);
-assert.strictEqual(M.mountFor('wibble',stand).adapter,integrated.adapter,'identical source must reuse bridge');
-const upper=M.topLobes(stand);
-assert.equal(upper.tips.length,4);
-for(const tip of upper.tips)assert(upper.zTop-tip.z<1.5);
-const sampled=M.upperSurfaceSampler(stand,upper.zTop-26);
-let contacts=0;
-for(const tip of upper.tips){
- const z=sampled(tip.x,tip.y);
- assert(Number.isFinite(z)&&upper.zTop-z<1.5,'Each of the four tips needs a sampled CAD surface');
- contacts++;
+assert.equal(Buffer.from(stand.positions.buffer,stand.positions.byteOffset,stand.positions.byteLength).toString('base64'),before,'Original Wibble coordinates changed');
+for(const p of B.presets){
+ const shade=B.build(p,wibble);
+ assert(a.validate(shade).ok,p.id+' integrated shade must be manifold');
+ assert.equal(shade.indices.length/3,shade.triangleCount);
+ assert.equal(a.stlBinary(shade).byteLength,84+50*shade.triangleCount);
 }
-for(const name of B.presets.map(p=>p.id)){
- const preset=B.presets.find(p=>p.id===name);
- const shade=B.build(preset);
- assert(a.validate(shade).ok);
- const low=shade.positions[2];
- assert.equal(low,0);
- // Internal socket/adapter male and female radii remain invariant, while the exterior skirt does not taper into them.
- // producing the original clearance without changing shade STL when switching bases.
- assert(Math.abs(B.INNER_MOUNT-integrated.interface.seatOuterRadius-0.164)<1e-6);
-}
-assert.equal(integrated.status,'prototype');
-console.log('PASS dynamic mounts: Taller direct + Wibble 4-apex conformal bridge, manifold STL, cached, 7 shade bodies; physical retention unverified');
+assert.equal(typeof M.buildWibbleBridge,'undefined','Old green bridge builder must not be exported');
+console.log('PASS Wibble: original four tips sampled, internal saddle in Shade, 2 solids, no green adapter, closed STL');
