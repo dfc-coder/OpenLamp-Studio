@@ -10,7 +10,7 @@ const context={window:{addEventListener(){},OpenLampBasics:B,OpenLampMounts:M},
  console,Math,Float32Array,Uint32Array,ArrayBuffer,DataView,Map,WeakMap,Number,Error};
 vm.runInNewContext(fs.readFileSync(path.join(__dirname,'..','app.js'),'utf8'),context);
 const geo=context.window.OpenLampTest;
-const outDir=process.env.OPENLAMP_CAD_DIR||path.join(os.tmpdir(),'openlamp-openscad-qa');
+const outDir=path.resolve(process.env.OPENLAMP_CAD_DIR||path.join(os.tmpdir(),'openlamp-openscad-qa'));
 fs.mkdirSync(outDir,{recursive:true});
 const raw=zlib.gunzipSync(fs.readFileSync(path.join(__dirname,'..','assets/stands/wibble-stand.olmesh.gz')));
 const wibble=geo.parseStandMesh(raw.buffer.slice(raw.byteOffset,raw.byteOffset+raw.byteLength));
