@@ -1,3 +1,13 @@
+# OpenLamp Studio v1.6 — Wibble con calce morfológico
+
+Corregimos el error geométrico de v1.5: la repisa anular plana NO copiaba las cuatro superficies curvas de Wibble. Ahora Shade incluye cuatro alojamientos cóncavos obtenidos de la **malla OBJ original de Wibble**, con relieve interno variable por radio y ángulo. La falda exterior sigue también la distribución angular real de los cuatro apoyos. **Solo dos sólidos: Shade y Base, sin pieza verde**.
+
+Verificamos superficies entre vértices STL, no solo en los cuatro extremos: si un triángulo de Shade se aproximaba demasiado o penetraba el sólido original, la geometría interna se ajusta hacia arriba sin tocar la silueta exterior. La pantalla de Taller mantiene su encastre directo anterior. Las pruebas cubren los siete Shade, ambas bases y el cambio de STL en el navegador.
+
+**Estado:** aproximación CAD conforme basada en la superficie superior, con tolerancia de impresión aún no calibrada. No se garantiza retención, fuerzas de ensamblado ni seguridad térmica/eléctrica. [Especificación v1.6](docs/WIBBLE_CONFORMAL_V1_6.md). Los releases anteriores más abajo son historial sustituido para Wibble.
+
+---
+
 # OpenLamp Studio v1.5 — Wibble sin pieza verde
 
 En Wibble eliminamos por completo el adaptador independiente. La pantalla ahora integra directamente un **apoyo anular interno** dimensionado a partir de los cuatro extremos superiores del stand original, con una **transición inferior suave** que ensancha lo necesario para alojarlos y vuelve a la silueta elegida más arriba. En el visor y en Make se entregan **solo dos sólidos: Shade y Base** (más una tapa opcional, si la seleccionás). Al cambiar a Taller, se restaura el encastre cilíndrico original, sin alterar su geometría.
