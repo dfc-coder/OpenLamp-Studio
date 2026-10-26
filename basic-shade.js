@@ -109,7 +109,9 @@
  function validateParams(p){
    const shape=shapeFor(p),errors=[];
    if(!validId(shape))errors.push('Forma desconocida');
-   if(!Number.isFinite(p.height)||p.height<90||p.height>270)errors.push('Altura 90–270 mm');
+   const minHeight=shape==='disc'?50:90,maxHeight=shape==='disc'?150:270;
+   if(!Number.isFinite(p.height)||p.height<minHeight||p.height>maxHeight)
+     errors.push('Altura fuera del rango '+minHeight+'–'+maxHeight+' mm');
    if(!Number.isFinite(p.diameter)||p.diameter<110||p.diameter>maxDiameter(p))errors.push('Diámetro fuera del rango 110–'+maxDiameter(p)+' mm');
    if(shape==='sphere'&&p.height>=p.diameter)
      errors.push('Sphere: altura de la zona esférica debe ser menor que el diámetro');
