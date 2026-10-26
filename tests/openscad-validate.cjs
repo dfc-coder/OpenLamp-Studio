@@ -85,7 +85,9 @@ for(const shape of ['cylinder','sphere','disc']){
    env:{...process.env,QT_QPA_PLATFORM:'offscreen'},encoding:'utf8',
    timeout:150000,maxBuffer:6*1024*1024});
  const log=(x.stderr||'')+'\n'+(x.stdout||'');
- if(x.error||x.status!==0||/ERROR:/.test(log))
+ // OpenSCAD 2021.01 exits nonzero for a valid EMPTY boolean intersection.
+ const noCollision=!fs.existsSync(collision)&&/Current top level object is empty\./.test(log);
+ if(x.error||(!noCollision&&x.status!==0)||/ERROR:/.test(log))
    throw Error('OpenSCAD assembly collision evaluation failed: '+log);
  const volume=fs.existsSync(collision)
    ? stlVolumeFromAscii(fs.readFileSync(collision,'utf8')):0;
