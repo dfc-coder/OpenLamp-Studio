@@ -38,6 +38,28 @@ jobs:
           node tests/morphological-contact.cjs
           node tests/wibble-laterals.cjs
           node tests/compatibility.cjs
+      - name: Instalar OpenSCAD (validación CAD independiente)
+        run: |
+          if ! command -v openscad >/dev/null 2>&1; then
+            sudo apt-get update -qq
+            sudo apt-get install -y -qq openscad
+          fi
+      - name: Verificar 15 STL con OpenSCAD CGAL
+        timeout-minutes: 12
+        env:
+          OPENLAMP_CAD_DIR: artifacts/cad
+          QT_QPA_PLATFORM: offscreen
+        run: node tests/openscad-validate.cjs
+      - name: Conservar STL y reporte de auditoría CAD
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: openscad-mesh-audit-${{ github.run_id }}
+          path: |
+            artifacts/cad/*.stl
+            artifacts/cad/cad-report.json
+          if-no-files-found: ignore
+          retention-days: 7
       - name: Validate optimized imported stand
         run: |
           node tests/stand.cjs
