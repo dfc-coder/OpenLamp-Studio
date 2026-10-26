@@ -20,7 +20,7 @@
   ['bell','Bell','⌒',148,162,{topDiameter:91}],
   ['sphere','Sphere','○',155,205,{}],
   ['pear','Pear','♧',160,153,{belly:0.34}],
-  ['disc','Disc','═',78,200,{discDepth:0.30}],
+  ['disc','Disc','═',78,235,{discDepth:0.40}],
  ];
  const presets=Object.freeze(defs.map(([shape,name,glyph,height,diameter,extra])=>Object.freeze({
   id:'basic_'+shape,name,family:'basic',glyph,height,diameter,thickness:1.8,waist:0,curvature:0,
@@ -80,13 +80,10 @@
       break;
     }
     case 'disc':{
-      // Shallow upper platter above a broad cylindrical lower section.
-      // Unlike Sphere this has a distinct upper shoulder rather than an
-      // almost identical symmetrical bulge. It has NO skinny lower stalk.
-      const start=clamp(0.56-o.discDepth*0.15,0.45,0.60);
-      const shoulder=clamp(o.discDepth*0.55,0.12,0.28);
-      r=R*(0.84+0.16*smooth((u-start)/shoulder))*
-        (1-0.06*smooth((u-.90)/.10));
+      // Symmetric lenticular disc: two rounded shoulders and a wide equator.
+      // The 72% radial opening preserves the hidden Wibble contact area.
+      const shoulder=clamp(o.discDepth,0.20,0.50);
+      r=R*(0.72+0.28*smooth(u/shoulder)*smooth((1-u)/shoulder));
       break;
     }
     default:throw new Error('Forma básica desconocida');
@@ -98,13 +95,13 @@
    // socket wall; neither the original stand nor the exterior gets squeezed.
    const target=INNER_MOUNT+SOCKET_WALL+p.thickness+MIN_LIGAMENT;
    if(shapeFor(p)==='sphere')return 2*Math.hypot(target,p.height/2);
-   const ratio={cylinder:1,cone:1,dome:1,bell:1,pear:0.76,disc:0.84}[shapeFor(p)];
+   const ratio={cylinder:1,cone:1,dome:1,bell:1,pear:0.76,disc:0.72}[shapeFor(p)];
    return ratio?2*target/ratio:Infinity;
  }
  function maxDiameter(p){
    switch(shapeFor(p)){
      case 'sphere':return 300;
-     case 'disc':return 250;
+     case 'disc':return 280;
      default:return 220;
    }
  }
