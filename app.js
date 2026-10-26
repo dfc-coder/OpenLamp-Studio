@@ -761,7 +761,7 @@
     byId('mount-warning').hidden=false;
     byId('mount-warning').textContent=bp.id==='flat'
       ? 'Taller Stand: socket interno oculto bajo la pantalla, sin cuello exterior. Holgura CAD radial nominal de 0,164 mm; ajuste físico pendiente.'
-      : 'Wibble Stand: la pantalla integra su propio apoyo anular interno sobre los cuatro extremos originales. Sin pieza intermedia; apoyo CAD sujeto a prueba física.';
+      : 'Wibble Stand: 4 cavidades internas siguen las coronas originales del OBJ, con separación CAD nominal. Sin adaptador ni repisa plana; verificar encastre y retención en impresión.';
     byId('download-base').textContent='STL '+bp.name+' ↗';
     byId('current-name').textContent=exact&&!originalParameterState(state)?'Taller Top · Paramétrico':preset.name;
     byId('current-family').textContent=FAMILY[preset.family].label;
@@ -812,7 +812,7 @@
       byId('status').textContent=bp.id==='flat'
         ? 'Taller: socket cilíndrico interior · prueba FDM pendiente'
         : mount?.integrated
-          ? 'Wibble: pantalla con apoyo interior sobre 4 lóbulos · sin adaptador adicional'
+          ? 'Wibble: 4 cavidades internas modeladas según el OBJ · apoyo CAD sin ensayo físico'
           : 'Wibble: unión no verificada para este proyecto anterior';
       for(const id of ['download-shade','download-base'])byId(id).disabled=false;
       byId('download-cap').disabled=!cap;
