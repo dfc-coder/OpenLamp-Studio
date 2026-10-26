@@ -54,6 +54,25 @@ for(const p of B.presets){
  const m=B.build(fit.params,mounts.wibble);
  inspect('wibble-'+p.id,m);
 }
+// Independent CGAL boolean checks on the ACTUAL ASSEMBLED solids.
+// A closed individual mesh can still physically penetrate its stand.
+for(const shape of ['cylinder','sphere','disc']){
+ const stem=shape==='cylinder'?'basic_cylinder':shape==='sphere'?'basic_sphere':'basic_disc';
+ const source=path.resolve(outDir,'source-wibble.stl').replaceAll('\\','/');
+ const shade=path.resolve(outDir,'wibble-'+stem+'.stl').replaceAll('\\','/');
+ const scadPath=path.join(outDir,'collision-'+shape+'.scad');
+ const collision=path.join(outDir,'collision-'+shape+'.stl');
+ const z=mounts.wibble.shadeBottom;
+ fs.writeFileSync(scadPath,'intersection() { import("'+source+'",convexity=10); translate([0,0,'+z+']) import("'+shade+'",convexity=10); }\n');
+ if(fs.existsSync(collision))fs.unlinkSync(collision);
+ const x=cp.spawnSync('openscad',['-o',collision,scadPath],{
+   env:{...process.env,QT_QPA_PLATFORM:'offscreen'},encoding:'utf8',
+   timeout:150000,maxBuffer:6*1024*1024});
+ const log=(x.stderr||'')+'\n'+(x.stdout||'');
+ if(x.error||x.status!==0||!/Current top level object is empty\./.test(log)||fs.existsSync(collision))
+   throw Error('CAD intersection between '+shape+' and Wibble: '+log);
+ console.log('OPENSCAD ASSEMBLY PASS '+shape+' + Wibble: empty CGAL intersection');
+}
 fs.writeFileSync(path.join(outDir,'cad-report.json'),JSON.stringify(records,null,2));
 assert.equal(records.length,15);
 console.log('PASS OpenSCAD CGAL: Wibble source and 14 true shade STLs, including Sphere and Disc');
