@@ -88,6 +88,10 @@ def main():
                 assert details["adapterRequired"] is False
                 assert details["socketType"] == "wibble-integrated-saddle"
                 assert page.locator("#download-adapter").count() == 0
+                assert page.locator("#presets .preset[data-id='basic_cylinder']").is_enabled()
+                assert page.locator("#presets .preset[data-id='basic_sphere']").is_disabled()
+                assert page.locator("#presets .preset[data-id='basic_disc']").is_disabled()
+                assert "Diámetro mínimo" in page.locator("#mount-warning").inner_text()
                 page.locator("button[data-step='make']").click()
                 assert "Wibble" in page.locator("#ol-checklist").inner_text()
                 with page.expect_download() as dl:
