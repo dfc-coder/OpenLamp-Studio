@@ -10,7 +10,7 @@
 })(typeof window!=='undefined'?window:undefined,function(){
  'use strict';
  const TAU=2*Math.PI;
- const WIBBLE_SKIRT_DROP=3.0;
+ const WIBBLE_SKIRT_DROP=22.0; // actual bottom coordinate below tallest Wibble crown
  const WIBBLE_CONTACT_GAP=0.4;
  const SHADOW_GAP=0.9; // nominal visual joint separation, physical calibration pending
  const FLAT=Object.freeze({id:'flat',kind:'direct',seatOuterRadius:34.880,
@@ -124,6 +124,33 @@
      const z=sampleTop(r*Math.cos(theta),r*Math.sin(theta));
      return Number.isFinite(z)?z-shadeBottom:null;
    };
+   // Independent angular boundary condition for the VISIBLE seam, derived
+   // from actual crown heights instead of using the old horizontal z=0 lip.
+   // Survey the radial band containing the original four Wibble crowns.
+   const rawCrown=new Float64Array(skirtBins);
+   for(let k=0;k<skirtBins;k++){
+     const theta=TAU*k/skirtBins;
+     let high=-Infinity;
+     for(let j=0;j<=26;j++){
+       const radius=58+j*(23/26);
+       const z=sampleTop(radius*Math.cos(theta),radius*Math.sin(theta));
+       if(Number.isFinite(z)&&z>zTop-30)high=Math.max(high,z);
+     }
+     rawCrown[k]=Number.isFinite(high)?high:zTop-19;
+   }
+   const crowns=new Float64Array(skirtBins);
+   for(let k=0;k<skirtBins;k++){
+     let high=-Infinity;
+     for(let shift=-3;shift<=3;shift++)
+       high=Math.max(high,rawCrown[(k+shift+skirtBins)%skirtBins]);
+     crowns[k]=high;
+   }
+   const angularCrown=theta=>{
+     const t=((theta%TAU)+TAU)%TAU/TAU*skirtBins;
+     const i=Math.floor(t),u=t-i;
+     return crowns[i%skirtBins]*(1-u)+crowns[(i+1)%skirtBins]*u;
+   };
+   const lipHeight=theta=>Math.max(0,angularCrown(theta)-shadeBottom+0.8);
    const mount={
      baseId,status:'prototype',adapter:null,shadeBottom,
      interface:{...spec},contactSites:tips.length,
@@ -137,12 +164,17 @@
        // Measured annular contact follows the actual topography in 2D (r,theta).
        // An angularly independent plane cannot locate Wibble's four lobes.
        sampleTop:localSurfaceZ,
+       lipHeight,
+       crownHeight:angularCrown,
+       maxTipRadius,
+       contactBandOuterRadius:maxTipRadius+2.5,
+       minExteriorRadius:maxTipRadius+3.8,
        envelopeRadius:circularEnvelope,
        minContactZ:0.65,
-       seatRoofZ:10.5,
+       seatRoofZ:WIBBLE_SKIRT_DROP+9,
        contactClearance:WIBBLE_CONTACT_GAP,
        contactUndersideZ:WIBBLE_SKIRT_DROP+WIBBLE_CONTACT_GAP,
-       contactTopZ:10.5,
+       contactTopZ:WIBBLE_SKIRT_DROP+9,
        blendStartZ:22,
        blendEndZ:63,
        skirtDrop:WIBBLE_SKIRT_DROP,
