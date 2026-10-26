@@ -117,14 +117,24 @@
  // inward upper web → inner socket wall ↓ socket lower lip →
  // outer socket wall ↑ underside web → lower inner shell ↓ lower rim.
  // A single revolved connected shell means no unjoined overlapping cylinders.
- function visualRadiusAt(t,p,mount=null){
+ function visualRadiusAt(t,p,mount=null,theta=0){
    const original=radiusAt(t,p),seat=mount?.integrated;
    if(!seat)return original;
-   // Base-specific ergonomic transition: broad only at the Wibble crown.
-   // The original chosen silhouette is preserved above the blend interval.
+   // A measured four-lobe FOOTPRINT instead of the previous circular bulge.
+   // At each angle the exterior clears Wibble's original high crowns;
+   // its upper portion smoothly returns to the chosen family silhouette.
    const z=t*p.height;
    const fade=1-smooth((z-seat.blendStartZ)/(seat.blendEndZ-seat.blendStartZ));
-   return original+(Math.max(original,seat.requiredExteriorRadius)-original)*fade;
+   const required=Math.max(original,seat.innerShelfRadius+p.thickness+9,
+     seat.envelopeRadius(theta)+7);
+   return original+(required-original)*fade;
+ }
+ function saddleUndersideAt(r,theta,seat){
+   const actual=seat.sampleTop(r,theta);
+   if(actual===null)return seat.minContactZ;
+   // A negative of the ORIGINAL Wibble upper surface with a nominal vertical
+   // print clearance. The base and the shade have matching (x,y) coordinates.
+   return Math.max(seat.minContactZ,actual+seat.contactClearance);
  }
  function crossSection(p,mount=null){
    const report=validateParams(p);if(!report.ok)throw new Error(report.errors.join('; '));
@@ -134,21 +144,21 @@
    for(let k=0;k<steps;k++)push('outer',h*k/(steps-1));
    push('inner',h);
    if(seat){
-     // A SINGLE screen mesh: its inside includes a four-tip-compatible
-     // annular landing shelf. It is not a removable adapter or extra solid.
-     const roof=seat.contactTopZ,underside=seat.contactUndersideZ;
+     // A continuously meshed four-pocket INNER LANDING. Its underside is a
+     // heightfield sampled from Wibble's original triangles in (x,y), not a
+     // flat annular platform. This remains ONE connected printable shade.
+     const roof=seat.seatRoofZ;
      for(let k=steps-2;k>=0;k--){
        const z=h*k/(steps-1);if(z<=roof)break;
        push('inner',z);
      }
      push('inner',roof);
      push('plain',roof,seat.innerShelfRadius);
-     push('plain',underside,seat.innerShelfRadius);
-     push('inner',underside);
-     for(let k=steps-2;k>=0;k--){
-       const z=h*k/(steps-1);if(z>=underside)continue;
-       push('inner',z);
+     for(let k=0;k<=seat.radialSamples;k++){
+       const fraction=k/seat.radialSamples;
+       contour.push({kind:'saddle',fraction,z:seat.minContactZ});
      }
+     push('inner',0);
    }else{
      for(let k=steps-2;k>=0;k--){
        const z=h*k/(steps-1);if(z<=SOCKET_ROOF)break;
@@ -170,8 +180,9 @@
    return contour;
  }
  function build(p,mount=null){
-   const sections=crossSection(p,mount),N=SEGMENTS,h=p.height;
-   const R=INNER_MOUNT+SOCKET_WALL,material=p.thickness;
+   const sections=crossSection(p,mount),seat=mount?.integrated||null;
+   const N=seat?192:SEGMENTS,h=p.height;
+   const material=p.thickness;
    const intensity=Number(p.surfaceIntensity??1);
    const ribs=Number.isFinite(intensity)&&intensity!==1?
      (intensity<1?0.55:1.15):0;
@@ -180,16 +191,24 @@
    const idx=(k,j)=>k*N+(j+N)%N;
    const radiusFor=(section,a)=>{
      if(section.kind==='plain')return section.r;
+     if(section.kind==='saddle'){
+       const inner=seat.innerShelfRadius;
+       const outer=visualRadiusAt(0,p,mount,a)-material;
+       return inner+(outer-inner)*section.fraction;
+     }
      const t=section.z/h;
      const fade=smooth((t-0.20)/0.10)*(1-smooth((t-0.87)/0.13));
      const relief=ribs*fade*Math.pow((1+Math.cos(28*a))/2,2);
-     return visualRadiusAt(t,p,mount)+relief-(section.kind==='inner'?material:0);
+     return visualRadiusAt(t,p,mount,a)+relief-(section.kind==='inner'?material:0);
    };
    for(let k=0;k<sections.length;k++)for(let j=0;j<N;j++){
      const section=sections[k],a=TAU*j/N,r=radiusFor(section,a);
      if(!Number.isFinite(r)||r<=0)throw new Error('Radio interior inválido');
+     const z=section.kind==='saddle'?saddleUndersideAt(r,a,seat):section.z;
+     if(seat&&section.kind==='saddle'&&z>=seat.seatRoofZ-2)
+       throw new Error('Wibble: espesor insuficiente sobre el asiento cóncavo');
      const i=idx(k,j)*3;
-     positions[i]=r*Math.cos(a);positions[i+1]=r*Math.sin(a);positions[i+2]=section.z;
+     positions[i]=r*Math.cos(a);positions[i+1]=r*Math.sin(a);positions[i+2]=z;
    }
    // With outer skirt -> upper profile -> inner socket -> lower lip order
    // the profile runs CCW in (r,z); reverse orientation if volume is negative
@@ -220,5 +239,5 @@
    return {positions,indices,vertexCount:sections.length*N,triangleCount:indices.length/3};
  }
  return Object.freeze({presets,shapeFor,validId,optionsFor,radiusAt,validateParams,build,
-  INNER_MOUNT,INSERTION,SOCKET_WALL,SOCKET_ROOF,SOCKET_UNDERSIDE,MIN_LIGAMENT,minimumDiameter,crossSection,visualRadiusAt,SEGMENTS,LEVELS});
+  INNER_MOUNT,INSERTION,SOCKET_WALL,SOCKET_ROOF,SOCKET_UNDERSIDE,MIN_LIGAMENT,minimumDiameter,crossSection,visualRadiusAt,saddleUndersideAt,SEGMENTS,LEVELS});
 });
