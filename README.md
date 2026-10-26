@@ -1,3 +1,15 @@
+# OpenLamp Studio v1.7 — Unión morfológica Wibble
+
+**Corregimos la falda artificial y el borde horizontal.** El contorno inferior ahora tiene una altura variable según las cuatro coronas **reales** del OBJ de Wibble, mientras el radio exterior sigue exactamente la familia de silueta elegida. La superficie interna continúa proporcionando cuatro alojamientos complementarios. No hay pieza verde ni tercer sólido.
+
+El Ø132 mm de Cylinder no admite las coronas Wibble de ~Ø146 mm: el configurador calcula un diámetro mínimo y lo muestra. Con límite máximo Ø220 mm, cinco de las siete formas actuales admiten Wibble; Sphere y Disc quedan bloqueadas para Wibble hasta rediseñar su interfaz sin perder identidad formal. Las siete siguen funcionando con Taller Stand.
+
+Pruebas: formas, STL, Wibble original, muestreo de contactos, controles de navegador y **cuatro vistas laterales CAD ortográficas** conservadas como artefactos de CI. La precisión del encastre en impresión, retención y seguridad térmica/elétrica no están certificadas.
+
+[Implementación y criterios de aceptación](docs/WIBBLE_MORPHOLOGICAL_SEAM_V1_7.md). Las descripciones anteriores de Wibble son historial.
+
+---
+
 # OpenLamp Studio v1.6 — Wibble con calce morfológico
 
 Corregimos el error geométrico de v1.5: la repisa anular plana NO copiaba las cuatro superficies curvas de Wibble. Ahora Shade incluye cuatro alojamientos cóncavos obtenidos de la **malla OBJ original de Wibble**, con relieve interno variable por radio y ángulo. La falda exterior sigue también la distribución angular real de los cuatro apoyos. **Solo dos sólidos: Shade y Base, sin pieza verde**.
