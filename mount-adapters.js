@@ -91,11 +91,20 @@
    const {zTop,tips}=topLobes(standMesh);
    const maxTipRadius=Math.max(...tips.map(p=>p.r));
    const minTipRadius=Math.min(...tips.map(p=>p.r));
+   // The visible skirt must stay radially outside Wibble throughout its
+   // upper 42-mm crown region. Derive the radius from the actual source CAD,
+   // not just the four tips (the lobes grow wider below their highest points).
+   let upperEnvelopeRadius=0;
+   for(let i=0;i<standMesh.positions.length;i+=3){
+     if(standMesh.positions[i+2] < zTop-42)continue;
+     upperEnvelopeRadius=Math.max(upperEnvelopeRadius,
+       Math.hypot(standMesh.positions[i],standMesh.positions[i+1]));
+   }
    const shadeBottom=zTop-WIBBLE_SKIRT_DROP;
    // Actual upper Wibble triangles are the surface-of-truth. Sample their
    // height over XY; unsupported angular sectors are OPEN SPACE, not flat seats.
    // Cache the spatial index once per source mesh, not once per slider edit.
-   const sampleTop=upperSurfaceSampler(standMesh,zTop-15);
+   const sampleTop=upperSurfaceSampler(standMesh,zTop-48);
    const skirtBins=192,rawEnvelope=new Float64Array(skirtBins);
    for(let i=0;i<standMesh.positions.length;i+=3){
      const x=standMesh.positions[i],y=standMesh.positions[i+1],z=standMesh.positions[i+2];
@@ -124,9 +133,10 @@
      const z=sampleTop(r*Math.cos(theta),r*Math.sin(theta));
      return Number.isFinite(z)?z-shadeBottom:null;
    };
-   // Independent angular boundary condition for the VISIBLE seam, derived
-   // from actual crown heights instead of using the old horizontal z=0 lip.
-   // Survey the radial band containing the original four Wibble crowns.
+   // Derive the visible skirt from Wibble's upper crowns AND recessed valleys.
+   // The old 15-mm sampler and 3-bin max filter raised valley edges, leaving
+   // windows between the base lobes and the shade in side elevations.
+   // Only Z varies; the full shade silhouette retains its original radius.
    const rawCrown=new Float64Array(skirtBins);
    for(let k=0;k<skirtBins;k++){
      const theta=TAU*k/skirtBins;
@@ -134,23 +144,37 @@
      for(let j=0;j<=26;j++){
        const radius=58+j*(23/26);
        const z=sampleTop(radius*Math.cos(theta),radius*Math.sin(theta));
-       if(Number.isFinite(z)&&z>zTop-30)high=Math.max(high,z);
+       if(Number.isFinite(z)&&z>zTop-42)high=Math.max(high,z);
      }
-     rawCrown[k]=Number.isFinite(high)?high:zTop-19;
+     rawCrown[k]=Number.isFinite(high)?high:zTop-38;
    }
-   const crowns=new Float64Array(skirtBins);
+   // Angular Lipschitz envelope: covers the real crown peaks while avoiding
+   // narrow, pointed skirt spikes over the valleys. The skirt's radial
+   // silhouette stays unchanged; only its source-driven lower Z varies.
+   const crowns=new Float64Array(skirtBins),MAX_SEAM_RISE_MM=2.4;
    for(let k=0;k<skirtBins;k++){
-     let high=-Infinity;
-     for(let shift=-3;shift<=3;shift++)
-       high=Math.max(high,rawCrown[(k+shift+skirtBins)%skirtBins]);
-     crowns[k]=high;
+     let required=-Infinity;
+     for(let j=0;j<skirtBins;j++){
+       const binDistance=Math.min(Math.abs(k-j),skirtBins-Math.abs(k-j));
+       required=Math.max(required,rawCrown[j]-MAX_SEAM_RISE_MM*binDistance);
+     }
+     crowns[k]=required;
+   }
+   const softened=new Float64Array(skirtBins);
+   for(let k=0;k<skirtBins;k++){
+     let mean=0,sum=0;
+     for(let d=-2;d<=2;d++){
+       const weight=3-Math.abs(d);
+       mean+=weight*crowns[(k+d+skirtBins)%skirtBins];sum+=weight;
+     }
+     softened[k]=Math.max(crowns[k],mean/sum);
    }
    const angularCrown=theta=>{
      const t=((theta%TAU)+TAU)%TAU/TAU*skirtBins;
      const i=Math.floor(t),u=t-i;
-     return crowns[i%skirtBins]*(1-u)+crowns[(i+1)%skirtBins]*u;
+     return softened[i%skirtBins]*(1-u)+softened[(i+1)%skirtBins]*u;
    };
-   const lipHeight=theta=>Math.max(0,angularCrown(theta)-shadeBottom+0.8);
+   const lipHeight=theta=>angularCrown(theta)-shadeBottom+0.8;
    const mount={
      baseId,status:'prototype',adapter:null,shadeBottom,
      interface:{...spec},contactSites:tips.length,
@@ -168,7 +192,7 @@
        crownHeight:angularCrown,
        maxTipRadius,
        contactBandOuterRadius:maxTipRadius+2.5,
-       minExteriorRadius:maxTipRadius+3.8,
+       minExteriorRadius:upperEnvelopeRadius+0.9,
        envelopeRadius:circularEnvelope,
        minContactZ:0.65,
        seatRoofZ:WIBBLE_SKIRT_DROP+9,

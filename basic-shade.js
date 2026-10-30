@@ -101,6 +101,7 @@
  function maxDiameter(p){
    switch(shapeFor(p)){
      case 'sphere':return 300;
+     case 'pear':return 260; // Wibble crown clearance needs a wider true Pear, never a hidden flare.
      case 'disc':return 280;
      default:return 220;
    }

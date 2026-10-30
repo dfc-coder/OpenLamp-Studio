@@ -25,7 +25,27 @@ const crownZ=[];
 for(let k=0;k<192;k++)crownZ.push(seat.lipHeight(2*Math.PI*k/192));
 assert(Math.max(...crownZ)-Math.min(...crownZ)>8,
   'Wibble must have a genuinely nonplanar top-seam');
+for(let k=0;k<crownZ.length;k++){
+ const dz=Math.abs(crownZ[k]-crownZ[(k+1)%crownZ.length]);
+ assert(dz<=2.45,'Pointed Wibble seam spike at angular sample '+k+': '+dz+' mm');
+}
 const source=M.topLobes(mesh),top=M.upperSurfaceSampler(mesh,source.zTop-26);
+ // Measure the true outer envelope, not the four upper tip radii alone.
+ let upperRadialMaximum=0;
+ for(let i=0;i<mesh.positions.length;i+=3){
+   if(mesh.positions[i+2]<source.zTop-42)continue;
+   upperRadialMaximum=Math.max(upperRadialMaximum,
+     Math.hypot(mesh.positions[i],mesh.positions[i+1]));
+ }
+ assert(seat.minExteriorRadius>=upperRadialMaximum+0.89,
+   'The shade wall must be kept outboard of Wibble upper-side surfaces');
+ // Regress the visible windows in the gaps between lobes. With the old
+ // crown-only sampler these eight valley positions were ~11.6 mm high.
+ for(const degrees of [15,30,105,120,195,210,285,300]){
+   const valley=seat.lipHeight(degrees*Math.PI/180);
+   assert(valley<7.5,'Uncovered Wibble valley at '+degrees+' degrees: '+valley+' mm');
+ }
+
 for(const tip of source.tips){
  const z=top(tip.x,tip.y);
  assert(Number.isFinite(z)&&Math.abs(z-tip.z)<0.05);
