@@ -73,7 +73,8 @@ function stlVolumeFromAscii(content){
  return Math.abs(sum);
 }
 const CAD_COLLISION_TOLERANCE_MM3=0.01;
-for(const shape of ['cylinder','sphere','disc']){
+// Check every morphologically distinct Wibble assembly, not only 3 examples.
+for(const shape of B.presets.map(p=>B.shapeFor(p))){
  const source=path.resolve(outDir,'source-wibble.stl').replaceAll('\\','/');
  const shade=path.resolve(outDir,'wibble-basic_'+shape+'.stl').replaceAll('\\','/');
  const scadPath=path.join(outDir,'collision-'+shape+'.scad');
