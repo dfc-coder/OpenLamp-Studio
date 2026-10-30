@@ -25,6 +25,10 @@ const crownZ=[];
 for(let k=0;k<192;k++)crownZ.push(seat.lipHeight(2*Math.PI*k/192));
 assert(Math.max(...crownZ)-Math.min(...crownZ)>8,
   'Wibble must have a genuinely nonplanar top-seam');
+for(let k=0;k<crownZ.length;k++){
+ const dz=Math.abs(crownZ[k]-crownZ[(k+1)%crownZ.length]);
+ assert(dz<=2.45,'Pointed Wibble seam spike at angular sample '+k+': '+dz+' mm');
+}
 const source=M.topLobes(mesh),top=M.upperSurfaceSampler(mesh,source.zTop-26);
  // Measure the true outer envelope, not the four upper tip radii alone.
  let upperRadialMaximum=0;
