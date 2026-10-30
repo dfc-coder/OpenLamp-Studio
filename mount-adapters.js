@@ -148,17 +148,31 @@
      }
      rawCrown[k]=Number.isFinite(high)?high:zTop-38;
    }
-   const crowns=new Float64Array(skirtBins);
+   // Angular Lipschitz envelope: covers the real crown peaks while avoiding
+   // narrow, pointed skirt spikes over the valleys. The skirt's radial
+   // silhouette stays unchanged; only its source-driven lower Z varies.
+   const crowns=new Float64Array(skirtBins),MAX_SEAM_RISE_MM=2.4;
    for(let k=0;k<skirtBins;k++){
-     let high=-Infinity;
-     for(let shift=-1;shift<=1;shift++)
-       high=Math.max(high,rawCrown[(k+shift+skirtBins)%skirtBins]);
-     crowns[k]=high;
+     let required=-Infinity;
+     for(let j=0;j<skirtBins;j++){
+       const binDistance=Math.min(Math.abs(k-j),skirtBins-Math.abs(k-j));
+       required=Math.max(required,rawCrown[j]-MAX_SEAM_RISE_MM*binDistance);
+     }
+     crowns[k]=required;
+   }
+   const softened=new Float64Array(skirtBins);
+   for(let k=0;k<skirtBins;k++){
+     let mean=0,sum=0;
+     for(let d=-2;d<=2;d++){
+       const weight=3-Math.abs(d);
+       mean+=weight*crowns[(k+d+skirtBins)%skirtBins];sum+=weight;
+     }
+     softened[k]=Math.max(crowns[k],mean/sum);
    }
    const angularCrown=theta=>{
      const t=((theta%TAU)+TAU)%TAU/TAU*skirtBins;
      const i=Math.floor(t),u=t-i;
-     return crowns[i%skirtBins]*(1-u)+crowns[(i+1)%skirtBins]*u;
+     return softened[i%skirtBins]*(1-u)+softened[(i+1)%skirtBins]*u;
    };
    const lipHeight=theta=>angularCrown(theta)-shadeBottom+0.8;
    const mount={
